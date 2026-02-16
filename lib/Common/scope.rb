@@ -1,17 +1,47 @@
 require_relative 'base'
 require_relative 'var'
 require 'Utility/type'
+require_relative 'type'
 
-module SimInfra
+module Protea
+    class IrStmt
+        attr_reader :name, :oprnds, :attrs
+        def initialize(name, oprnds, attrs)
+            @name = name; @oprnds = oprnds; @attrs = attrs;
+        end
+
+        def to_h
+            {
+                name: @name,
+                oprnds: @oprnds.map { |o|
+                    if o.class == Var || o.class == Constant
+                        o.to_h
+                    else
+                        o
+                    end
+                },
+                attrs: @attrs,
+            }
+        end
+
+        def self.from_h(h)
+            IrStmt.new(h[:name], h[:oprnds], h[:attrs])
+        end
+    end
+end
+
+module Protea
   def assert(condition, msg = nil)
     raise msg unless condition
   end
 
   class Scope
     include GlobalCounter # used for temp variables IDs
-    include SimInfra
+    include Protea
+    include Type::Utils
 
-    attr_reader :tree, :vars, :parent, :mem
+    attr_reader :vars, :mem
+    attr_accessor :tree, :parent
 
     def initialize(parent)
       @tree = []
@@ -21,23 +51,29 @@ module SimInfra
     end
     # resolve allows to convert Ruby Integer constants to Constant instance
 
-    def var(name, type, attrs = nil)
-      method(name, type)
+    def var(name, type, attrs = nil, plod_type = Type::Empty.new())
+      if type.is_a?(Type::TypeObject)
+        plod_type = type
+        type = plod_type.name
+      end
+
+      method(name, type, nil, plod_type)
       stmt :new_var, [@vars[name]], attrs # returns @vars[name]
     end
 
-    def method(name, type, regset = nil)
-      @vars[name] = SimInfra::Var.new(self, name, type, regset) # return var
+    def method(name, type, regset = nil, plod_type = Type::Empty.new())
+      @vars[name] = Protea::Var.new(name, type, regset, plod_type) # return var
       instance_eval "def #{name}(); return @vars[:#{name}]; end", __FILE__, __LINE__
+      @vars[name]
     end
 
     def rmethod(name, regset, type)
-      @vars[name] = SimInfra::Var.new(self, name, type, regset) # return var
+      @vars[name] = Protea::Var.new(name, type, regset) # return var
       instance_eval "def #{name}(); return @vars[:#{name}]; end", __FILE__, __LINE__
     end
 
-    def add_var(name, type, attrs = nil)
-      var(name, type, attrs)
+    def add_var(name, type, attrs = nil, plod_type = Type::Empty.new())
+      var(name, type, attrs, plod_type)
       self
     end
 
@@ -60,22 +96,27 @@ module SimInfra
     end
 
     def binOp(a, b, op)
-      binOpWType(a, b, op,
+      if a.plod_type.nil?
+        binOpWType(a, b, op,
                  Utility.get_type(a.type).typeof == :r ? ('b' + Utility.get_type(a.type).bitsize.to_s).to_sym : a.type)
+      else
+        binOpWType(a, b, op, a.plod_type.name, a.plod_type)
+      end
     end
 
-    def binOpWType(a, b, op, t)
+    def binOpWType(a, b, op, t, plod_type = Type::Empty.new())
       a = resolve_const(a)
       b = resolve_const(b)
       # TODO: check constant size <= bitsize(var)
       # assert(a.type== b.type|| a.type == :iconst || b.type== :iconst)
-      stmt op, [tmpvar(t), a, b]
+      stmt op, [tmpvar(t, plod_type), a, b]
     end
 
     # redefine! add & sub will never be the same
     def add(a, b) = binOp(a, b, :add)
     def sub(a, b) = binOp(a, b, :sub)
     def shl(a, b) = binOp(a, b, :shl)
+    def rem(a, b) = binOp(a, b, :rem)
     def lt(a, b) = binOpWType(a, b, :lt, :b1)
     def gt(a, b) = binOpWType(a, b, :gt, :b1)
     def le(a, b) = binOpWType(a, b, :le, :b1)
@@ -97,6 +138,9 @@ module SimInfra
     def extract(x, r, l)
       stmt :extract, [tmpvar(('b' + (r - l + 1).to_s).to_sym), x, resolve_const(r), resolve_const(l)]
     end
+
+    def neg(expr) = stmt(:neg, [tmpvar(expr.type), expr])
+    def not(expr) = stmt(:not, [tmpvar(expr.type), expr])
 
     def zext(a, type) = stmt(:zext, [tmpvar(type), a])
 
@@ -131,7 +175,13 @@ module SimInfra
     end
 
     def jlet(sym, type, expr)
-      add_var(sym, type)
+      plod_type = Type::Empty.new
+      if type.is_a?(Type::TypeObject)
+        plod_type = type
+        type = plod_type.name
+      end
+
+      add_var(sym, type, nil, plod_type)
       stmt(:let, [@vars[sym], expr])
     end
 
@@ -152,7 +202,7 @@ module SimInfra
 
     def branch(expr) = stmt(:branch, [expr])
 
-    private def tmpvar(type) = var("_tmp#{next_counter}".to_sym, type)
+    private def tmpvar(type, plod_type = Type::Empty.new()) = var("_tmp#{next_counter}".to_sym, type, nil, plod_type)
     # stmtadds statement into tree and retursoperand[0]
     # which result in near all cases
     def stmt(name, operands, attrs = nil)
@@ -171,6 +221,81 @@ module SimInfra
       else
         op
       end
+    end
+
+    # PLOD specific part
+
+    def get_field_by_name(plod_type, expr, name) = stmt(:get_field, [tmpvar(plod_type.name, plod_type), expr, name])
+
+    def get_container_element(plod_type, container, idx) = stmt(:get, [tmpvar(plod_type.name, plod_type), container, idx])
+
+    def insert_var(name, var)
+      @vars[name] = var
+      instance_eval "def #{name}(); return @vars[:#{name}]; end", __FILE__, __LINE__
+      var
+    end
+
+    def call(type, expr, name, *args) = stmt(:call, [tmpvar(type.name, type), expr, name, *args])
+
+    def add_method(name, ret_type)
+      if ret_type.nil?
+        define_singleton_method(name) do |*args|
+          stmt(:call, [name, *args])
+        end
+      else
+        define_singleton_method(name) do |*args|
+          stmt(:call, [tmpvar(ret_type.name, ret_type), name, *args])
+        end
+      end
+    end
+
+    def Return(*expr) = stmt(:ret, [expr])
+
+    def Cast(type, var)
+      stmt(:cast, [tmpvar(type.name, type), var])
+    end
+
+    def Let(*args) = let(*args)
+
+    def Var(name, type, attrs = nil, plod_type = Type::Empty.new()) = var(name, type, attrs, plod_type)
+
+    def create_subscope
+      subscope = clone
+      subscope.tree = []
+      subscope.parent = self
+      subscope
+    end
+
+    def If(cond, &block)
+      stmt(:if, [cond])
+      subscope = create_subscope
+      @tree << subscope
+      Var.open_scope(subscope)
+      subscope.instance_eval(&block)
+      Var.close_scope
+    end
+
+    def Elseif(&block)
+      stmt(:elif, [:elif])
+      subscope = create_subscope
+      @tree << subscope
+      Var.open_scope(subscope)
+      subscope.instance_eval(&block)
+      Var.close_scope
+    end
+
+    def Else(&block)
+      stmt(:else, [:else])
+      subscope = create_subscope
+      @tree << subscope
+      Var.open_scope(subscope)
+      subscope.instance_eval(&block)
+      Var.close_scope
+    end
+
+    def GetPtr(var)
+      ret_type = Type::Ptr.new(var.plod_type)
+      stmt(:get_ptr, [tmpvar(ret_type.name, ret_type), var])
     end
 
     def to_h

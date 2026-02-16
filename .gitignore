@@ -9,6 +9,10 @@
 /test/tmp/
 /test/version_tmp/
 /tmp/
+/sim_lib/generated
+IR.json
+IR.yaml
+/lib/Devices/serial.c
 /.vscode/
 /.ruby-lsp/
 /.cache/

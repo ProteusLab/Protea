@@ -1,35 +1,8 @@
-require_relative "scope"
+require "Common/scope"
 require "Utility/type"
 
-module SimInfra
-    class IrStmt
-        attr_reader :name, :oprnds, :attrs
-        def initialize(name, oprnds, attrs)
-            @name = name; @oprnds = oprnds; @attrs = attrs;
-        end
-
-        def to_h
-            {
-                name: @name,
-                oprnds: @oprnds.map { |o|
-                    if o.class == Var || o.class == Constant
-                        o.to_h
-                    else
-                        o
-                    end
-                },
-                attrs: @attrs,
-            }
-        end
-
-        def self.from_h(h)
-            IrStmt.new(h[:name], h[:oprnds], h[:attrs])
-        end
-    end
-end
-
 # Basics
-module SimInfra  
+module Protea  
     def assert(condition, msg = nil); raise msg if !condition; end
 
     @@instructions = []
@@ -75,7 +48,7 @@ module SimInfra
     end
 
     class InstructionInfoBuilder
-        include SimInfra
+        include Protea
 
         def initialize(name, feature) 
             @info = InstructionInfo.new(name, feature) 
@@ -127,7 +100,7 @@ module SimInfra
     end
 
     class InterfaceBuilder
-        include SimInfra
+        include Protea
 
         def function(name, output_types = [], input_types = [])
             @@interface_functions << {:name => name, :return_types => output_types, :argument_types => input_types}
@@ -201,7 +174,7 @@ module SimInfra
 end
 
 # * generate precise fields
-module SimInfra
+module Protea
     class RegisterFileBuilder
         def r32(sym, *args)
             @info.regs << Register.new(sym, 32, args[0] ? [args[0]] : [])

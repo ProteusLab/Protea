@@ -1,7 +1,7 @@
 #!/usr/bin/ruby
 # frozen_string_literal: true
 
-require 'ADL/base'
+require 'Common/base'
 require 'ADL/builder'
 require 'Target/RISC-V/32I'
 
