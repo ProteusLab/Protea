@@ -52,6 +52,8 @@ module CodeGen
         binary_operation(@emitter, operation, '-')
       when :mul
         binary_operation(@emitter, operation, '*')
+      when :rem
+        binary_operation(@emitter, operation, '%')
       when :div
         binary_operation(@emitter, operation, '/')
       when :shr
