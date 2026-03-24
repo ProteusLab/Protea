@@ -15,7 +15,7 @@ module Utility
 
     def gen_small_type(type)
       actual_type = Utility.get_type(type)
-      cpp_bitsize = actual_type.bitsize % 8 == 0 ? actual_type.bitsize : (actual_type.bitsize / 8 + 1) * 8
+      cpp_bitsize = [8, 1 << (actual_type.bitsize - 1).bit_length].max
       "#{actual_type.typeof == :s ? 'int' : 'uint'}#{cpp_bitsize}_t"
     end
   end

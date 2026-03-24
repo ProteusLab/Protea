@@ -7,7 +7,7 @@ module RV32I
     extend SimInfra
 
     Interface {
-        function :sysCall
+        Function(:sysCall)
     }
 
     RegisterFile(:XRegs) {

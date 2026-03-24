@@ -24,13 +24,15 @@ jobs:
       - name: Run clang-format style check
         uses: jidicula/clang-format-action@v4.14.0
         with:
-          clang-format-version: '19'
+          clang-format-version: '20'
           check-path: '.'
 
-  build:
+  test:
     needs: formatting-check
-    name: Build
+    name: Test
     runs-on: ubuntu-22.04
+    container: 
+      image: ghcr.io/egorshamshura/protea-build:latest
     strategy:
       fail-fast: false
       matrix:
@@ -44,11 +46,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: '3.4.8'
-          bundler-cache: true
-
       - name: Build
         run: ci-extra/build.sh "$CMAKE_PRESET"
+
+      - name: Run tests
+        run: ci-extra/test.sh "$CMAKE_PRESET"

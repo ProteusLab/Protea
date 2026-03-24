@@ -12,7 +12,9 @@
 #include <vector>
 
 namespace prot::engine {
+
 using JitFunction = void (*)(CPU &);
+
 class JitEngine : public Interpreter {
   static constexpr std::size_t kExecThreshold = 10;
 
@@ -35,12 +37,14 @@ protected:
       const auto &entry = get(gpa);
       return entry.gpa == gpa ? entry.func : nullptr;
     }
+
     void insert(std::uint32_t gpa, JitFunction func) {
       get(gpa) = Entry{.func = func, .gpa = gpa};
     }
 
   private:
     const Entry &get(std::uint32_t gpa) const { return m_cache[getHash(gpa)]; }
+
     Entry &get(std::uint32_t gpa) { return m_cache[getHash(gpa)]; }
 
     [[nodiscard]] static constexpr std::uint32_t getHash(std::uint32_t gpa) {
@@ -55,10 +59,12 @@ protected:
     std::vector<isa::Instruction> insns;
     std::size_t num_exec{};
   };
+
   [[nodiscard]] const BBInfo *getBBInfo(isa::Addr pc) const;
 
 private:
   void interpret(CPU &cpu, BBInfo &info);
+
   void execute(CPU &cpu, const isa::Instruction &insn) final {
     Interpreter::execute(cpu, insn);
   }
@@ -94,11 +100,13 @@ public:
   template <typename T> [[nodiscard]] auto as() const {
     return reinterpret_cast<T>(m_data.get());
   }
+
   void operator()(CPU &state) const { as<JitFunction>()(state); }
 
 private:
   std::unique_ptr<std::byte, Unmap> m_data;
 };
+
 } // namespace prot::engine
 
 #endif // INCLUDE_JIT_BASE_HH_INCLUDED

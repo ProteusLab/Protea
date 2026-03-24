@@ -24,7 +24,7 @@ set(PROTEA_SIMGEN_OUTPUT_FILES
 set(IR_YAML_FILE ${protea_irgen_BINARY_DIR}/IR.yaml)
 
 
-add_custom_command(
+add_custom_command(DEPENDS
   OUTPUT ${PROTEA_SIMGEN_OUTPUT_FILES}
   COMMAND ${BUNDLE_PATH} exec ruby ${CMAKE_CURRENT_SOURCE_DIR}/sim_gen.rb ${IR_YAML_FILE}
   DEPENDS ${IR_YAML_FILE}
@@ -38,7 +38,8 @@ add_executable(sim ${PROTEA_SIMGEN_OUTPUT_SOURCES}
   ${protea_simlib_SOURCE_DIR}/base_jit.cc 
   ${protea_simlib_SOURCE_DIR}/sim.cc 
   ${protea_simlib_SOURCE_DIR}/jit_factory.cc
-  ${protea_simlib_SOURCE_DIR}/memory.cc)
+  ${protea_simlib_SOURCE_DIR}/memory.cc
+  ${protea_simlib_SOURCE_DIR}/Target/${TARGET_NAME}/cpu_state_ext.cc)
   
 target_include_directories(sim PRIVATE ${CMAKE_CURRENT_BINARY_DIR} ${protea_simlib_SOURCE_DIR})
 target_link_libraries(sim elfio CLI11 fmt)
