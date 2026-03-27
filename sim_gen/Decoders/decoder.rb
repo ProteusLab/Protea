@@ -56,32 +56,35 @@ module SimGen
             def get_lead_bits(instructions, separ_mask = 0)
                 lead_bits = {}
                 max_len = instructions.map { |insn| insn[:XLEN] * 8 }.max
+            
                 for bit in 0...max_len
-                    if separ_mask & (1 << bit) != 0
-                        next
-                    end
-
+                    next if (separ_mask & (1 << bit)) != 0
+            
                     count_0 = 0
                     count_1 = 0
-        
+                    all_have_bit = true
+            
                     for insn in instructions
                         insn_mask = calc_insn_mask(insn)
                         insn_value = calc_insn_value(insn)
-
-                        if insn_mask & (1 << bit) == 0
-                            next
+            
+                        if (insn_mask & (1 << bit)) == 0
+                            all_have_bit = false
+                            break
                         end
-
+            
                         if (insn_value & (1 << bit)) != 0
                             count_1 += 1
                         else
                             count_0 += 1
                         end
                     end
-                    if count_0 > 0 && count_1 > 0
+            
+                    if all_have_bit && count_0 > 0 && count_1 > 0
                         lead_bits[bit] = [count_0, count_1]
                     end
                 end
+            
                 lead_bits
             end
 

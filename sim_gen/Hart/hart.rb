@@ -52,6 +52,8 @@ public:
 
   auto getIcount() const { return m_cpu->m_icount; }
 
+  auto getExitCode() const { return m_cpu->m_code; }
+
 public:
   std::unique_ptr<Memory> m_mem;
   std::unique_ptr<CPU> m_cpu;

@@ -8,12 +8,13 @@ extern "C" {
 }
 
 namespace prot::engine {
+
 using namespace prot::isa;
 using namespace prot::decoder;
 
 void JitEngine::step(CPU &cpu) {
   while (!cpu.m_finished) [[likely]] {
-    // colllect bb
+    // collect bb
     const auto pc = cpu.getPC();
     auto found = m_tbCache.lookup(pc);
     if (found != nullptr) [[likely]] {
@@ -30,7 +31,8 @@ void JitEngine::step(CPU &cpu) {
         auto bytes = cpu.m_memory->read<isa::Word>(curAddr);
         auto inst = decode(bytes);
         if (!inst.has_value()) {
-          throw std::runtime_error{"Cannot decode bytes"};
+          throw std::runtime_error{"Cannot decode bytes: " +
+                                   std::to_string(bytes)};
         }
 
         bb.insns.push_back(*inst);
@@ -51,6 +53,7 @@ void JitEngine::step(CPU &cpu) {
     interpret(cpu, bbIt->second);
   }
 }
+
 void JitEngine::interpret(CPU &cpu, BBInfo &info) {
   for (const auto &insn : info.insns) {
     execute(cpu, insn);
@@ -94,4 +97,5 @@ CodeHolder::CodeHolder(std::span<const std::byte> src)
     throw std::runtime_error{"Failed to change protection"};
   }
 }
+
 } // namespace prot::engine

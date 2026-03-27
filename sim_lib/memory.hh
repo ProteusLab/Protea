@@ -2,6 +2,7 @@
 #define PROT_MEMORY_HH_INCLUDED_MEMORY_HH_INCLUDED
 
 #include "isa.hh"
+
 #include <array>
 #include <cstring>
 #include <memory>
@@ -59,14 +60,19 @@ public:
   }
 
   virtual uint8_t read8(isa::Addr addr) const { return read<uint8_t>(addr); }
+
   virtual uint16_t read16(isa::Addr addr) const { return read<uint16_t>(addr); }
+
   virtual uint32_t read32(isa::Addr addr) const { return read<uint32_t>(addr); }
+
   virtual void write8(isa::Addr addr, uint8_t val) {
     write<uint8_t>(addr, val);
   }
+
   virtual void write16(isa::Addr addr, uint16_t val) {
     write<uint16_t>(addr, val);
   }
+
   virtual void write32(isa::Addr addr, uint32_t val) {
     write<uint32_t>(addr, val);
   }

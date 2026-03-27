@@ -58,7 +58,7 @@ module SimGen
 
             def is_terminator_instruction(insn)
                 insn[:code][:tree].each { |node|
-                    return true if node[:name] == :branch
+                    return true if node[:name] == :branch || node[:name] == :sysCall
                 }
                 false
             end

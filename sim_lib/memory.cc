@@ -1,4 +1,5 @@
 #include "memory.hh"
+
 #include "isa.hh"
 
 #include <algorithm>
@@ -46,9 +47,11 @@ public:
   uint8_t read8(isa::Addr addr) const override {
     return *reinterpret_cast<const uint8_t *>(translateAddr(addr));
   }
+
   uint16_t read16(isa::Addr addr) const override {
     return *reinterpret_cast<const uint16_t *>(translateAddr(addr));
   }
+
   uint32_t read32(isa::Addr addr) const override {
     return *reinterpret_cast<const uint32_t *>(translateAddr(addr));
   }
@@ -56,9 +59,11 @@ public:
   void write8(isa::Addr addr, uint8_t val) override {
     *reinterpret_cast<uint8_t *>(translateAddr(addr)) = val;
   }
+
   void write16(isa::Addr addr, uint16_t val) override {
     *reinterpret_cast<uint16_t *>(translateAddr(addr)) = val;
   }
+
   void write32(isa::Addr addr, uint32_t val) override {
     *reinterpret_cast<uint32_t *>(translateAddr(addr)) = val;
   }

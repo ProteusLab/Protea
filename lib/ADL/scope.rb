@@ -75,6 +75,9 @@ module SimInfra
     # redefine! add & sub will never be the same
     def add(a, b) = binOp(a, b, :add)
     def sub(a, b) = binOp(a, b, :sub)
+    def mul(a, b) = binOp(a, b, :mul)
+    def div(a, b) = binOp(a, b, :div)
+    def rem(a, b) = binOp(a, b, :rem)
     def shl(a, b) = binOp(a, b, :shl)
     def lt(a, b) = binOpWType(a, b, :lt, :b1)
     def gt(a, b) = binOpWType(a, b, :gt, :b1)
