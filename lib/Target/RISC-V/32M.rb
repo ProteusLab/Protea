@@ -45,12 +45,12 @@ module RV32M
     Instruction(:rem) {
         encoding *format_r(0b0110011, 0b110, 0b0000001)
         asm { "rem {rd}, {rs1}, {rs2}" }
-        code { rd[]= rs1.s / rs2.s }
+        code { rd[]= rs1.s % rs2.s }
     }
 
     Instruction(:remu) {
         encoding *format_r(0b0110011, 0b111, 0b0000001)
         asm { "remu {rd}, {rs1}, {rs2}" }
-        code { rd[]= rs1.u / rs2.u }
+        code { rd[]= rs1.u % rs2.u }
     }
 end
