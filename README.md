@@ -13,15 +13,19 @@ It is a monorepo managed by [Bundler](https://bundler.io/). To install dependenc
 bundle install
 ```
 
-So every ruby tool or script can be run using `bundle exec`, for example:
+Every ruby tool or script can be run using `bundle exec`.
 
+## SDL
 ```bash
-bundle exec ruby tools/some_tool.rb
+bundle exec ruby lib/d_ir_gen.rb
 ```
 
+
+## ADL
+```bash
+bundle exec ruby lib/ir_gen.rb
+```
 
 
 Tests
 -----
-
-
