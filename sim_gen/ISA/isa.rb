@@ -118,7 +118,7 @@ enum class Opcode : uint32_t {
 
 inline constexpr std::size_t getILen(Opcode opc) {
   switch (opc) {
-    #{input_ir[:instructions].map { |insn| "case Opcode::k#{insn[:name].to_s.upcase}: return #{insn[:XLEN]};" }.join("\n    ")}
+    #{input_ir[:instructions].map { |insn| "case Opcode::k#{insn[:name].to_s.upcase}: return #{insn[:fields].map { |f| f[:from] - f[:to] + 1 }.sum / 8};" }.join("\n    ")}
     default: return 4;
   }
 }

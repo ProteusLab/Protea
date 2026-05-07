@@ -15,11 +15,10 @@ module SimGen
       def find_max_insn_len(instructions)
         max_len = 0
         instructions.each do |insn|
-          insn[:code][:tree].each do |node|
-            len_insn = node[:fields].map { |f| f[:from] - f[:to] }.sum / 8
-            max_len = [max_len, len_insn].max
-          end
+          len_insn = insn[:fields].map { |f| f[:from] - f[:to] + 1 }.sum
+          max_len = [max_len, len_insn].max
         end
         max_len
+      end
   end
 end
