@@ -98,7 +98,7 @@ module SimGen
 
                 instruction_struct = Helper.generate_instruction_struct(input_ir)
                 is_terminator_function = Helper.generate_is_terminator_function(input_ir)
-                max_xlen = SimGen::Helper::find_max_xlen(input_ir[:regfiles])
+                max_xlen = SimGen::Helper::find_max_regsize(input_ir[:regfiles])
 "#ifndef GENERATED_#{input_ir[:isa_name].upcase}_ISA_HH_INCLUDED
 #define GENERATED_#{input_ir[:isa_name].upcase}_ISA_HH_INCLUDED
 

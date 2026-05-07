@@ -34,7 +34,7 @@ struct ExecEngine {
       module_function
 
       def generate_base_exec_engine(input_ir)
-        max_xlen = SimGen::Helper::find_max_xlen(input_ir[:regfiles])
+        max_xlen = SimGen::Helper::find_max_regsize(input_ir[:regfiles])
 
 "#include \"base_exec_engine.hh\"
 #include \"memory.hh\"
