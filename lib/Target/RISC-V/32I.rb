@@ -175,50 +175,50 @@ module RV32I
     Instruction(:beq) {
         encoding *format_b(0b1100011, 0b000)
         asm { "beq {rs1}, {rs2}, {imm}" }
-        code { branch(select(rs1 == rs2, pc + imm, pc + xlen)) }
+        code { branch(select(rs1 == rs2, pc + imm, pc + 4)) }
     }
 
     Instruction(:bne) {
         encoding *format_b(0b1100011, 0b001)
         asm { "bne {rs1}, {rs2}, {imm}" }
-        code { branch(select(rs1 != rs2, pc + imm, pc + xlen)) }
+        code { branch(select(rs1 != rs2, pc + imm, pc + 4)) }
     }
 
     Instruction(:blt) {
         encoding *format_b(0b1100011, 0b100)
         asm { "blt {rs1}, {rs2}, {imm}" }
-        code { branch(select(rs1.s < rs2.s, pc + imm, pc + xlen)) }
+        code { branch(select(rs1.s < rs2.s, pc + imm, pc + 4)) }
     }
 
     Instruction(:bge) {
         encoding *format_b(0b1100011, 0b101)
         asm { "bge {rs1}, {rs2}, {imm}" }
-        code { branch(select(rs1.s >= rs2.s, pc + imm, pc + xlen)) }
+        code { branch(select(rs1.s >= rs2.s, pc + imm, pc + 4)) }
     }
 
     Instruction(:bltu) {
         encoding *format_b(0b1100011, 0b110)
         asm { "bltu {rs1}, {rs2}, {imm}" }
-        code { branch(select(rs1.u < rs2.u, pc + imm, pc + xlen)) }
+        code { branch(select(rs1.u < rs2.u, pc + imm, pc + 4)) }
     }
 
     Instruction(:bgeu) {
         encoding *format_b(0b1100011, 0b111)
         asm { "bgeu {rs1}, {rs2}, {imm}" }
-        code { branch(select(rs1.u >= rs2.u, pc + imm, pc + xlen)) }
+        code { branch(select(rs1.u >= rs2.u, pc + imm, pc + 4)) }
     }
 
     Instruction(:jal) {
         encoding *format_j(0b1101111)
         asm { "jal {rd}, {imm}" }
-        code { rd[]= pc + xlen; branch(pc + imm) }
+        code { rd[]= pc + 4; branch(pc + imm) }
     }
 
     Instruction(:jalr) {
         encoding *format_i(0b1100111, 0b000)
         asm { "jalr {rd}, {rs1}, {imm}" }
         code { 
-          let :t, :b32, pc + xlen
+          let :t, :b32, pc + 4
           branch((rs1 + imm) & (~1))
           rd[]= t
         }
