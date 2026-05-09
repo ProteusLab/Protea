@@ -33,13 +33,13 @@ module RV32M
     Instruction(:div) {
         encoding *format_r(0b0110011, 0b100, 0b0000001)
         asm { "div {rd}, {rs1}, {rs2}" }
-        code { rd[]= rs1.s / rs2.s }
+        code { rd[]= select(rs2 != 0, rs1.s / rs2.s, 0xffffffff) }
     }
 
     Instruction(:divu) {
         encoding *format_r(0b0110011, 0b101, 0b0000001)
         asm { "divu {rd}, {rs1}, {rs2}" }
-        code { rd[]= rs1.u / rs2.u }
+        code { rd[]= select(rs2 != 0, rs1.u / rs2.u, 0xffffffff) }
     }
     
     Instruction(:rem) {
