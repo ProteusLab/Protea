@@ -127,7 +127,7 @@ module RV32I
     Instruction(:slti) {
         encoding *format_i(0b0010011, 0b010)
         asm { "slti {rd}, {rs1}, {imm}" }
-        code { rd[]= (rs1.s < imm).b32  }
+        code { rd[]= (rs1.s < imm.s).b32  }
     }
 
     Instruction(:sltiu) {

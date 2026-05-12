@@ -1,4 +1,1 @@
-mul a2, a0, a1
-mulh a3, a0, a1
-mulhsu a4, a0, a1
-mulhu a5, a0, a1
+mul x8, x9, x10
