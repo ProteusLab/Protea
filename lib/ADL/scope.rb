@@ -106,8 +106,19 @@ module SimInfra
     def get_reg(expr, regset, type) = rlet("_reg_#{next_counter}".to_sym, regset, type, expr)
 
     def write(rfile, reg, expr) = stmt(:write, [rfile, reg, expr])
-    def writeMem(addr, expr) = stmt(:writeMem, [addr, expr])
-    def readMem(addr, type) = stmt(:readMem, [tmpvar(type), addr])
+
+    def writeMem(addr, expr)
+      arg_types = [addr.type, expr.type].map { |t| t.is_a?(Symbol) ? t : t.type }
+      SimInfra.register_memory_interface(:writeMem, [], arg_types)
+      stmt(:writeMem, [addr, expr])
+    end
+
+    def readMem(addr, type)
+      arg_types = [addr.type]
+      SimInfra.register_memory_interface(:readMem, [type], arg_types)
+      v = tmpvar(type)
+      stmt(:readMem, [v, addr])
+    end
 
     def read(rfile, reg)
       v = tmpvar(:b32)
