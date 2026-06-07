@@ -29,7 +29,7 @@ module SimInfra
 end
 
 # Basics
-module SimInfra  
+module SimInfra
     def assert(condition, msg = nil); raise msg if !condition; end
 
     @@instructions = []
@@ -75,15 +75,16 @@ module SimInfra
     class InstructionInfoBuilder
         include SimInfra
 
-        def initialize(name, feature) 
-            @info = InstructionInfo.new(name, feature) 
-            @info.code = Scope.new(nil) 
+        def initialize(name, feature)
+            @info = InstructionInfo.new(name, feature)
+            @info.code = Scope.new(nil)
 
             @@interface_functions.each do |func|
+                next if func[:kind] == :memory
                 if !func[:return_types].empty?
                     @info.code.instance_eval "def #{func[:name]}(*args)
                         in_s = *args.map { |a| resolve_const(a) }
-                        in_stmt = [tmpvar(#{func[:return_types][0]})] 
+                        in_stmt = [tmpvar(#{func[:return_types][0]})]
                         in_stmt.concat(in_s)
                         return stmt :#{func[:name]}, in_stmt
                     end
@@ -101,10 +102,10 @@ module SimInfra
         end
 
         def encoding(frmt, fields, *args)
-            @info.fields = fields 
-            @info.frmt= frmt 
-            map args 
-            
+            @info.fields = fields
+            @info.frmt= frmt
+            map args
+
             sum_bits = 0
             for f in fields
                 sum_bits += Utility.get_type(f.value.type).bitsize
@@ -132,7 +133,6 @@ module SimInfra
 
     def Interface(&blck)
         bldr = InterfaceBuilder.new()
-        
         bldr.instance_eval &blck
     end
 
@@ -176,27 +176,27 @@ module SimInfra
     end
 
     @@regfiles = []
-class RegisterFileBuilder
-  attr_reader :info
-  
-  def initialize(name) 
-    @info = RegisterFileInfo.new(name)
-    @info.regs = []
-  end
+    class RegisterFileBuilder
+      attr_reader :info
 
-  def method_missing(name, *args)
-    if name.to_s.start_with?('r')
-      size = name.to_s[1..].to_i
-      instance_eval "def #{name}(sym, *args); @info.regs << Register.new(sym, #{size}, args.size > 0 ? args : []); end", __FILE__, __LINE__
-      @info.regs << Register.new(args[0], size, args.size > 1 ? args[1..] : [])
-    else
-      error "Unknown method #{name}"
+      def initialize(name)
+        @info = RegisterFileInfo.new(name)
+        @info.regs = []
+      end
+
+      def method_missing(name, *args)
+        if name.to_s.start_with?('r')
+          size = name.to_s[1..].to_i
+          instance_eval "def #{name}(sym, *args); @info.regs << Register.new(sym, #{size}, args.size > 0 ? args : []); end", __FILE__, __LINE__
+          @info.regs << Register.new(args[0], size, args.size > 1 ? args[1..] : [])
+        else
+          error "Unknown method #{name}"
+        end
+      end
+
+      def zero = :zero
+      def pc = :pc
     end
-  end
-
-  def zero = :zero
-  def pc = :pc
-end
 
     def RegisterFile(name, &block)
         bldr = RegisterFileBuilder.new(name)
