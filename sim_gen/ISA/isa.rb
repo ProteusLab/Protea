@@ -102,6 +102,7 @@ module SimGen
 "#ifndef GENERATED_#{input_ir[:isa_name].upcase}_ISA_HH_INCLUDED
 #define GENERATED_#{input_ir[:isa_name].upcase}_ISA_HH_INCLUDED
 
+#include <cstddef>
 #include <cstdint>
 
 namespace prot::isa {
