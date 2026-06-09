@@ -46,7 +46,9 @@ int main(int argc, const char *argv[]) try {
     prot::hart::Hart hart{prot::memory::makePlain(4ULL << 30U),
                           std::move(engine)};
     hart.load(loader);
-    hart.m_cpu->setXRegs<uint32_t>(2, kDefaultStack);
+    // hart.m_cpu->setXRegs<uint32_t>(2, kDefaultStack);
+    hart.getCPU()->setXRegs<uint32_t>(2, kDefaultStack);
+
     return hart;
   }();
 
