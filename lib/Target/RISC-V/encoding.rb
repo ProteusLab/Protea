@@ -60,15 +60,14 @@ module SimInfra
         ], i_imm(:imm), xreg(:rs1), xreg(:rd)
     end
 
-    def format_i_shift(opcode, func3, sopcode)
-        return :srai, [
+    def format_i_shift(opcode, func3, funct7)
+        return :I, [
             field(:f_opcode, 6, 0, opcode),
-            field(:func3, 14, 12, func3),
-            field(:f_imm4_0, 24, 20),
             field(:f_rd, 11, 7),
+            field(:f_funct3, 14, 12, func3),
             field(:f_rs1, 19, 15),
-            field(:f_temp, 26, 25, 0b01),
-            field(:f_sopcode, 31, 27, sopcode),
+            field(:f_imm11_5, 31, 25, funct7),
+            field(:f_imm4_0, 24, 20),
         ], is_imm(:imm), xreg(:rs1), xreg(:rd)
     end
 
