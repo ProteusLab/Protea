@@ -155,19 +155,19 @@ module RV32I
     }
 
     Instruction(:slli) {
-        encoding *format_i_shift(0b0010011, 0b001, 0b00000)
+        encoding *format_i_shift(0b0010011, 0b001, 0b0000000)
         asm { "slli {rd}, {rs1}, {imm}" }
         code { rd[]= rs1 << imm }
     }
 
     Instruction(:srli) {
-        encoding *format_i_shift(0b0010011, 0b101, 0b00000)
+        encoding *format_i_shift(0b0010011, 0b101, 0b0000000)
         asm { "srli {rd}, {rs1}, {imm}" }
         code { rd[]= rs1 >> imm }
     }
 
     Instruction(:srai) {
-        encoding *format_i_shift(0b0010011, 0b101, 0b01000)
+        encoding *format_i_shift(0b0010011, 0b101, 0b0100000)
         asm { "srai {rd}, {rs1}, {imm}" }
         code { rd[]= rs1.s >> imm }
     }
@@ -217,7 +217,7 @@ module RV32I
     Instruction(:jalr) {
         encoding *format_i(0b1100111, 0b000)
         asm { "jalr {rd}, {rs1}, {imm}" }
-        code { 
+        code {
           let :t, :b32, pc + 4
           branch((rs1 + imm) & (~1))
           rd[]= t
@@ -259,7 +259,7 @@ module RV32I
         asm { "lw {rd}, {imm}({rs1})" }
         code { rd[]= mem[rs1 + imm, :b32] }
     }
-    
+
     Instruction(:lbu) {
         encoding *format_i(0b0000011, 0b100)
         asm { "lbu {rd}, {imm}({rs1})" }
