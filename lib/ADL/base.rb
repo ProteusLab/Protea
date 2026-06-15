@@ -30,7 +30,7 @@ module SimInfra
         yaml_data = YAML.dump(
           {
             regfiles: @@regfiles.map(&:to_h),
-            interface_functions: @@interface_functions.map { |f| f.reject { |k| k == :kind } },
+            interface_functions: @@interface_functions.map(&:to_h),
             instructions: @@instructions.map(&:to_h),
           }
         )
@@ -41,7 +41,7 @@ module SimInfra
         YAML.dump(
             {
                 regfiles: @@regfiles.map(&:to_h),
-                interface_functions: @@interface_functions.map { |f| f.reject { |k| k == :kind } },
+                interface_functions: @@interface_functions.map(&:to_h),
                 instructions: @@instructions.map(&:to_h),
             }
         )
