@@ -7,10 +7,12 @@ module Utility
   module HelperCpp
     module_function
 
-    def gen_type(type)
+    def gen_type(type, signed = false)
       actual_type = Utility.get_type(type)
-      cpp_bitsize = actual_type.bitsize % 32 == 0 ? actual_type.bitsize : (actual_type.bitsize / 32 + 1) * 32
-      "#{actual_type.typeof == :s ? 'int' : 'uint'}#{cpp_bitsize}_t"
+      width = actual_type.bitsize
+      prefix = signed || actual_type.typeof == :s ? "" : "u"
+      rounded = [1, 8, 16, 32, 64, 128].find { |s| s >= width } || 128
+      rounded == 1 ? "bool" : "#{prefix}int#{rounded}_t"
     end
 
     def gen_small_type(type)
