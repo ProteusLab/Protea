@@ -107,17 +107,31 @@ module SimInfra
 
     def write(rfile, reg, expr) = stmt(:write, [rfile, reg, expr])
 
+    def memory_interface_name(base_name, types)
+      suffix = nil
+      if base_name == :readMem
+        type = types.first
+        suffix = type.to_s.match(/\d+/)[0] if type && type.to_s =~ /b\d+|r\d+/
+      elsif base_name == :writeMem
+        type = types[1] if types.size > 1
+        suffix = type.to_s.match(/\d+/)[0] if type && type.to_s =~ /b\d+|r\d+/
+      end
+      suffix ? "#{base_name}#{suffix}".to_sym : base_name
+    end
+
     def writeMem(addr, expr)
-      arg_types = [addr.type, expr.type].map { |t| t.is_a?(Symbol) ? t : t.type }
-      SimInfra.register_memory_interface(:writeMem, [], arg_types)
-      stmt(:writeMem, [addr, expr])
+      arg_types = [addr.type, expr.type]
+      iface_name = memory_interface_name(:writeMem, arg_types)
+      SimInfra.register_memory_interface(iface_name, [], arg_types)
+      stmt(:writeMem, [addr, expr], iface_name)
     end
 
     def readMem(addr, type)
       arg_types = [addr.type]
-      SimInfra.register_memory_interface(:readMem, [type], arg_types)
+      iface_name = memory_interface_name(:readMem, [type])
+      iface = SimInfra.register_memory_interface(iface_name, [type], arg_types)
       v = tmpvar(type)
-      stmt(:readMem, [v, addr])
+      stmt(:readMem, [v, addr], iface_name)
     end
 
     def read(rfile, reg)
