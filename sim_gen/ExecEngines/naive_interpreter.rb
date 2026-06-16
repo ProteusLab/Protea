@@ -33,12 +33,8 @@ module SimGen
 
       def map_operands(insn)
         operands = {}
-        cnt = 0
-        insn[:map][:tree].each do |node|
-          if node[:name] == :new_var && !node[:attrs].nil? && node[:attrs].include?(:op)
-            operands[node[:oprnds][0][:name]] = "insn.operand#{cnt}"
-            cnt += 1
-          end
+        (insn[:operand_list] || []).each_with_index do |name, idx|
+          operands[name] = "insn.operand#{idx}"
         end
         operands[:pc] = 'cpu.getPC()'
         operands
