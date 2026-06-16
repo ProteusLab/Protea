@@ -40,11 +40,14 @@ module SimInfra
     end
 
     class InstructionInfo
-        attr_accessor :name, :fields, :frmt, :map, :code, :map_code_blocks, :asm_str, :feature
+        attr_accessor :name, :fields, :frmt, :map, :code, :map_code_blocks, :asm_str, :feature,
+                      :operand_map, :operand_list
         def initialize(name, feature)
             @name = name;
             @map_code_blocks = {}
             @feature = feature
+            @operand_map = {}
+            @operand_list = []
         end
 
         def to_h
@@ -55,6 +58,8 @@ module SimInfra
                 asm_str: @asm_str,
                 code: @code.to_h,
                 map: @map.to_h,
+                operand_map: @operand_map.transform_values(&:to_h),
+                operand_list: @operand_list,
                 feature: @feature,
             }
         end
@@ -68,6 +73,10 @@ module SimInfra
             info.code.instance_variable_set(:@tree, h[:code][:tree].map { |s| IrStmt.from_h(s) })
             info.map = Scope.new(nil)
             info.map.instance_variable_set(:@tree, h[:map][:tree].map { |s| IrStmt.from_h(s) })
+            if h[:operand_map]
+                info.operand_map = h[:operand_map].transform_values { |v| Scope.from_h(v) }
+                info.operand_list = h[:operand_list] || info.operand_map.keys
+            end
             info
         end
     end
@@ -214,17 +223,20 @@ end
 module SimInfra
     class InstructionInfoBuilder
         def code(&block)
-            if !@info.map_code_blocks.empty?
-                @info.fields.each { |f|
-                    @info.map.method(f.value.name, f.value.type)
-                }
+            # Build legacy map from operand scopes for backward compat
+            @info.map = Scope.new(nil)
+            @info.fields.each { |f| @info.map.method(f.value.name, f.value.type) }
+            @info.operand_map.each_value do |scope|
+                scope.tree.each { |stmt| @info.map.tree << stmt }
             end
-            @info.map_code_blocks.each do |k, v|
-                @info.map.instance_eval v[1]
+
+            # Link code scope methods to operand vars
+            @info.operand_map.each do |name, scope|
+                var = scope.vars[name]
+                @info.code.method(name, var.type, var.regset) if var
             end
-            @info.map_code_blocks.each do |k, v|
-                @info.code.method(k, v[0], @info.map.vars[k].regset)
-            end
+
+            # Register files
             for regfile in @@regfiles
                 for reg in regfile.regs
                     @info.code.method(reg.name, ('r' + reg.size.to_s).to_sym)
@@ -234,11 +246,14 @@ module SimInfra
         end
 
         def map(blocks)
-            if (!blocks.nil? && !blocks.empty?)
-                for blck in blocks
-                    @info.map_code_blocks[blck[0]] = [blck[1], blck[2]]
-                end
+            return if blocks.nil? || blocks.empty?
+            blocks.each do |name, type, code_str|
+                scope = Scope.new(nil)
+                @info.fields.each { |f| scope.method(f.value.name, f.value.type) }
+                scope.instance_eval(code_str)
+                @info.operand_map[name] = scope
             end
+            @info.operand_list = blocks.map(&:first)
         end
 
         def asm(&block)
