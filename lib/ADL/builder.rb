@@ -57,7 +57,6 @@ module SimInfra
                 frmt: @frmt,
                 asm_str: @asm_str,
                 code: @code.to_h,
-                map: @map.to_h,
                 operand_map: @operand_map.transform_values(&:to_h),
                 operand_list: @operand_list,
                 feature: @feature,
@@ -71,8 +70,6 @@ module SimInfra
             info.asm_str = h[:asm_str]
             info.code = Scope.new(nil)
             info.code.instance_variable_set(:@tree, h[:code][:tree].map { |s| IrStmt.from_h(s) })
-            info.map = Scope.new(nil)
-            info.map.instance_variable_set(:@tree, h[:map][:tree].map { |s| IrStmt.from_h(s) })
             if h[:operand_map]
                 info.operand_map = h[:operand_map].transform_values { |v| Scope.from_h(v) }
                 info.operand_list = h[:operand_list] || info.operand_map.keys
@@ -223,13 +220,6 @@ end
 module SimInfra
     class InstructionInfoBuilder
         def code(&block)
-            # Build legacy map from operand scopes for backward compat
-            @info.map = Scope.new(nil)
-            @info.fields.each { |f| @info.map.method(f.value.name, f.value.type) }
-            @info.operand_map.each_value do |scope|
-                scope.tree.each { |stmt| @info.map.tree << stmt }
-            end
-
             # Link code scope methods to operand vars
             @info.operand_map.each do |name, scope|
                 var = scope.vars[name]

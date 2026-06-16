@@ -157,12 +157,8 @@ module SimGen
 
             def map_operands(insn)
                 operands = {}
-                cnt = 0
-                for node in insn[:map][:tree]
-                    if node[:name] == :new_var && !node[:attrs].nil? && node[:attrs].include?(:op)
-                        operands[node[:oprnds][0][:name]] = "insn.operand#{cnt}"
-                        cnt += 1
-                    end
+                (insn[:operand_list] || []).each_with_index do |name, idx|
+                  operands[name] = "insn.operand#{idx}"
                 end
                 operands
             end
@@ -189,8 +185,8 @@ module SimGen
                 emitter = Utility::GenEmitter.new
                 operand_map = map_operands(insn)
                 gen = CodeGen::CppGenerator.new(emitter, operand_map)
-                for node in insn[:map][:tree]
-                    gen.generate_statement(node)
+                (insn[:operand_map] || {}).each_value do |scope|
+                    (scope[:tree] || []).each { |node| gen.generate_statement(node) }
                 end
                 emitter
             end
