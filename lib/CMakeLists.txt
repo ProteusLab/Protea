@@ -5,6 +5,11 @@ set(NATIVE_IR_FILE ${CMAKE_CURRENT_BINARY_DIR}/IR.yaml)
 add_custom_command(
   OUTPUT ${NATIVE_IR_FILE}
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/ir_gen.rb
+          ${CMAKE_CURRENT_SOURCE_DIR}/ADL/base.rb
+          ${CMAKE_CURRENT_SOURCE_DIR}/ADL/builder.rb
+          ${CMAKE_CURRENT_SOURCE_DIR}/Target/RISC-V/encoding.rb
+          ${CMAKE_CURRENT_SOURCE_DIR}/Target/RISC-V/32I.rb
+          ${CMAKE_CURRENT_SOURCE_DIR}/Target/RISC-V/32M.rb
   COMMAND ${BUNDLE_PATH} exec ruby ${CMAKE_CURRENT_SOURCE_DIR}/ir_gen.rb
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   COMMENT "Generating native IR (IR.yaml)"
