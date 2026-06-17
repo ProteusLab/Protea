@@ -1,32 +1,41 @@
 require_relative "../../ADL/base"
+require_relative "../../ADL/builder"
 
 module SimInfra
-    def u_imm(imm)
-        return imm, :s32, "let :#{imm}, [:op], :s32, f_#{imm}.s << 12"
+    XReg = Operand(:XReg, :r32) do
+        map { |name| let name, :XRegs, [:op], :r32, send("f_#{name}") }
     end
 
-    def i_imm(imm)
-        return imm, :s32, "let :#{imm}, [:op], :s32, f_#{imm}.s32"
+    IImm = Operand(:IImm, :s32) do
+        map { |name| let name, [:op], :s32, send("f_#{name}").s32 }
     end
 
-    def is_imm(imm)
-        return imm, :s32, "let :#{imm}, [:op], :s32, f_imm4_0"
+    UImm = Operand(:UImm, :s32) do
+        map { |name| let name, [:op], :s32, (send("f_#{name}").s << 12) }
     end
 
-    def j_imm(imm)
-        return imm, :s32, "let :#{imm}, [:op], :s32, (f_imm20.b21 << 20 | f_imm19_12.b21 << 12 | f_imm11.b21 << 11 | f_imm10_1.b21 << 1).s32"
+    IsImm = Operand(:IsImm, :s32) do
+        map { |name| let name, [:op], :s32, f_imm4_0 }
     end
 
-    def b_imm(imm)
-        return imm, :s32, "let :#{imm}, [:op], :s32, (f_imm12.b13 << 12 | f_imm11.b13 << 11 | f_imm10_5.b13 << 5 | f_imm4_1.b13 << 1).s32"
+    JImm = Operand(:JImm, :s32) do
+        map { |name|
+            let name, [:op], :s32,
+                (f_imm20.b21 << 20 | f_imm19_12.b21 << 12 | f_imm11.b21 << 11 | f_imm10_1.b21 << 1).s32
+        }
     end
 
-    def s_imm(imm)
-        return imm, :s32, "let :#{imm}, [:op], :s32, (f_imm11_5.b12 << 5 | f_imm4_0.b12).s32"
+    BImm = Operand(:BImm, :s32) do
+        map { |name|
+            let name, [:op], :s32,
+                (f_imm12.b13 << 12 | f_imm11.b13 << 11 | f_imm10_5.b13 << 5 | f_imm4_1.b13 << 1).s32
+        }
     end
 
-    def xreg(name)
-        return name, :r32, "let :#{name}, :XRegs, [:op], :r32, f_#{name}"
+    SImm = Operand(:SImm, :s32) do
+        map { |name|
+            let name, [:op], :s32, (f_imm11_5.b12 << 5 | f_imm4_0.b12).s32
+        }
     end
 end
 
@@ -36,7 +45,7 @@ module SimInfra
             field(:f_opcode, 6, 0, opcode),
             field(:f_rd, 11, 7),
             field(:f_imm, 31, 12),
-        ], xreg(:rd), u_imm(:imm)
+        ], XReg[:rd], UImm[:imm]
     end
 
     def format_r(opcode, funct3, funct7)
@@ -47,7 +56,7 @@ module SimInfra
             field(:f_rs1, 19, 15),
             field(:f_rs2, 24, 20),
             field(:f_funct7, 31, 25, funct7),
-        ], xreg(:rs2), xreg(:rs1), xreg(:rd)
+        ], XReg[:rs2], XReg[:rs1], XReg[:rd]
     end
 
     def format_i(opcode, funct3)
@@ -57,7 +66,7 @@ module SimInfra
             field(:f_funct3, 14, 12, funct3),
             field(:f_rs1, 19, 15),
             field(:f_imm, 31, 20),
-        ], i_imm(:imm), xreg(:rs1), xreg(:rd)
+        ], IImm[:imm], XReg[:rs1], XReg[:rd]
     end
 
     def format_i_shift(opcode, func3, funct7)
@@ -68,7 +77,7 @@ module SimInfra
             field(:f_rs1, 19, 15),
             field(:f_imm11_5, 31, 25, funct7),
             field(:f_imm4_0, 24, 20),
-        ], is_imm(:imm), xreg(:rs1), xreg(:rd)
+        ], IsImm[:imm], XReg[:rs1], XReg[:rd]
     end
 
     def format_b(opcode, funct3)
@@ -81,7 +90,7 @@ module SimInfra
             field(:f_imm10_5, 30, 25),
             field(:f_imm11, 7, 7),
             field(:f_imm12, 31, 31),
-        ], b_imm(:imm), xreg(:rs1), xreg(:rs2)
+        ], BImm[:imm], XReg[:rs1], XReg[:rs2]
     end
 
     def format_j(opcode)
@@ -92,7 +101,7 @@ module SimInfra
             field(:f_imm19_12, 19, 12),
             field(:f_imm11, 20, 20),
             field(:f_imm10_1, 30, 21),
-        ], j_imm(:imm), xreg(:rd)
+        ], JImm[:imm], XReg[:rd]
     end
 
     def format_s(opcode, func3)
@@ -103,6 +112,6 @@ module SimInfra
             field(:f_rs1, 19, 15),
             field(:f_rs2, 24, 20),
             field(:f_imm11_5, 31, 25),
-        ], s_imm(:imm), xreg(:rs1), xreg(:rs2)
+        ], SImm[:imm], XReg[:rs1], XReg[:rs2]
     end
 end

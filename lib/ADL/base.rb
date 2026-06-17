@@ -48,7 +48,7 @@ module SimInfra
     end
 
     # reset state
-    def siminfra_reset_module_state; @@instructions = []; end
+    def siminfra_reset_module_state; @@instructions = []; @@operands = []; end
 
     # mixin for global counter, function returns 0,1,2,....
     module GlobalCounter
