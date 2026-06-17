@@ -34,6 +34,7 @@ module SimInfra
 
     @@instructions = []
     @@interface_functions = []
+    @@operands = []
 
     def self.interface_functions
         @@interface_functions
@@ -76,6 +77,29 @@ module SimInfra
             end
             info
         end
+    end
+
+    class OperandInfo
+        attr_accessor :name, :type, :map_proc, :asm_str, :sem_proc
+
+        def initialize(name, type = nil)
+            @name = name
+            @type = type
+            @map_proc = nil
+            @asm_str = nil
+            @sem_proc = nil
+        end
+
+        def for(op_name)
+            template = self
+            info = OperandInfo.new(op_name, @type)
+            info.asm_str = @asm_str
+            info.sem_proc = @sem_proc
+            info.map_proc = proc { instance_exec(op_name, &template.map_proc) }
+            info
+        end
+
+        alias_method :[], :for
     end
 
     class InstructionInfoBuilder
@@ -128,6 +152,42 @@ module SimInfra
         @@instructions << bldr.info
         nil # only for debugging in IRB
     end
+
+    class OperandBuilder
+        include SimInfra
+
+        def initialize(name, type = nil)
+            @info = OperandInfo.new(name, type)
+        end
+
+        def map(type = nil, &block)
+            @info.type = type if type
+            @info.map_proc = block if block
+        end
+
+        def asm(&block)
+            @info.asm_str = instance_eval(&block) if block
+        end
+
+        def code(&block)
+            @info.map_proc = block if block
+        end
+
+        def sem(&block)
+            @info.sem_proc = block if block
+        end
+
+        attr_reader :info
+    end
+
+    def Operand(name, type = nil, &block)
+        bldr = OperandBuilder.new(name, type)
+        bldr.instance_eval(&block) if block
+        @@operands << bldr.info
+        bldr.info
+    end
+
+    module_function :Operand
 
     class InterfaceBuilder
         include SimInfra
@@ -237,13 +297,30 @@ module SimInfra
 
         def map(blocks)
             return if blocks.nil? || blocks.empty?
-            blocks.each do |name, type, code_str|
-                scope = Scope.new(nil)
-                @info.fields.each { |f| scope.method(f.value.name, f.value.type) }
-                scope.instance_eval(code_str)
+
+            blocks.each do |block|
+                scope = build_scope(block)
+                name = operand_name(block)
                 @info.operand_map[name] = scope
             end
-            @info.operand_list = blocks.map(&:first)
+            @info.operand_list = blocks.map { |b| operand_name(b) }
+        end
+
+        private
+
+        def operand_name(block)
+            block.is_a?(OperandInfo) ? block.name : block[0]
+        end
+
+        def build_scope(block)
+            scope = Scope.new(nil)
+            @info.fields.each { |f| scope.method(f.value.name, f.value.type) }
+            if block.is_a?(OperandInfo)
+                scope.instance_eval(&block.map_proc)
+            else
+                scope.instance_eval(block[2])
+            end
+            scope
         end
 
         def asm(&block)
