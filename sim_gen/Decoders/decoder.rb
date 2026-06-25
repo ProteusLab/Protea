@@ -55,33 +55,35 @@ module SimGen
             
             def get_lead_bits(instructions, separ_mask = 0)
                 lead_bits = {}
-                max_len = instructions.map { |insn| insn[:XLEN] * 8 }.max
+                max_len = SimGen::Helper::find_max_insn_len(instructions)
                 for bit in 0...max_len
-                    if separ_mask & (1 << bit) != 0
-                        next
-                    end
-
+                    next if (separ_mask & (1 << bit)) != 0
+            
                     count_0 = 0
                     count_1 = 0
-        
+                    all_have_bit = true
+            
                     for insn in instructions
                         insn_mask = calc_insn_mask(insn)
                         insn_value = calc_insn_value(insn)
-
-                        if insn_mask & (1 << bit) == 0
-                            next
+            
+                        if (insn_mask & (1 << bit)) == 0
+                            all_have_bit = false
+                            break
                         end
-
+            
                         if (insn_value & (1 << bit)) != 0
                             count_1 += 1
                         else
                             count_0 += 1
                         end
                     end
-                    if count_0 > 0 && count_1 > 0
+            
+                    if all_have_bit && count_0 > 0 && count_1 > 0
                         lead_bits[bit] = [count_0, count_1]
                     end
                 end
+            
                 lead_bits
             end
 
@@ -155,12 +157,8 @@ module SimGen
 
             def map_operands(insn)
                 operands = {}
-                cnt = 0
-                for node in insn[:map][:tree]
-                    if node[:name] == :new_var && !node[:attrs].nil? && node[:attrs].include?(:op)
-                        operands[node[:oprnds][0][:name]] = "insn.operand#{cnt}"
-                        cnt += 1
-                    end
+                (insn[:operand_list] || []).each_with_index do |name, idx|
+                  operands[name] = "insn.operand#{idx}"
                 end
                 operands
             end
@@ -187,8 +185,8 @@ module SimGen
                 emitter = Utility::GenEmitter.new
                 operand_map = map_operands(insn)
                 gen = CodeGen::CppGenerator.new(emitter, operand_map)
-                for node in insn[:map][:tree]
-                    gen.generate_statement(node)
+                (insn[:operand_map] || {}).each_value do |scope|
+                    (scope[:tree] || []).each { |node| gen.generate_statement(node) }
                 end
                 emitter
             end

@@ -8,13 +8,11 @@
   "configurePresets": [
     {
       "name": "Base",
-      "description": "General preset that applies to all configurations",
       "hidden": true,
       "binaryDir": "${sourceDir}/build/${presetName}"
     },
     {
       "name": "Default-Release",
-      "description": "Release build",
       "inherits": "Base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release"
@@ -22,23 +20,107 @@
     },
     {
       "name": "Default-Debug",
-      "description": "Debug build",
       "inherits": "Base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "Default-RelWithDebInfo",
+      "inherits": "Base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+      }
+    },
+    {
+      "name": "Default-Sanitized",
+      "inherits": "Base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "SANITIZED": "ON"
+      }
+    },
+    {
+      "name": "Default-SanitizedDebug",
+      "inherits": "Base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "SANITIZED": "ON"
       }
     }
   ],
   "buildPresets": [
     {
       "name": "Default-Release",
-      "description": "Build Release configuration",
       "configurePreset": "Default-Release"
     },
     {
       "name": "Default-Debug",
-      "description": "Build Debug configuration",
       "configurePreset": "Default-Debug"
+    },
+    {
+      "name": "Default-RelWithDebInfo",
+      "configurePreset": "Default-RelWithDebInfo"
+    },
+    {
+      "name": "Default-Sanitized",
+      "configurePreset": "Default-Sanitized"
+    },
+    {
+      "name": "Default-SanitizedDebug",
+      "configurePreset": "Default-SanitizedDebug"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "Default-Release",
+      "configurePreset": "Default-Release",
+      "execution": {
+        "jobs": 16
+      },
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "Default-Debug",
+      "configurePreset": "Default-Debug",
+      "execution": {
+        "jobs": 16
+      },
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "Default-RelWithDebInfo",
+      "configurePreset": "Default-RelWithDebInfo",
+      "execution": {
+        "jobs": 16
+      },
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "Default-Sanitized",
+      "configurePreset": "Default-Sanitized",
+      "execution": {
+        "jobs": 16
+      },
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "Default-SanitizedDebug",
+      "configurePreset": "Default-SanitizedDebug",
+      "execution": {
+        "jobs": 16
+      },
+      "output": {
+        "outputOnFailure": true
+      }
     }
   ]
 }

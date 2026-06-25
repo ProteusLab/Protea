@@ -11,7 +11,7 @@ require 'sim_gen/ExecEngines/llvm_jit'
 
 require 'yaml'
 
-yaml_data = YAML.load_file(ARGV[0])
+yaml_data = YAML.safe_load_file(ARGV[0], permitted_classes: [Symbol], aliases: true)
 yaml_data[:isa_name] = "RISCV"
 
 File.write('cpu_state.hh', SimGen::CPUState::Header.generate_cpu_state(yaml_data))

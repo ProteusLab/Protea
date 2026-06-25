@@ -75,6 +75,9 @@ module SimInfra
     # redefine! add & sub will never be the same
     def add(a, b) = binOp(a, b, :add)
     def sub(a, b) = binOp(a, b, :sub)
+    def mul(a, b) = binOp(a, b, :mul)
+    def div(a, b) = binOp(a, b, :div)
+    def rem(a, b) = binOp(a, b, :rem)
     def shl(a, b) = binOp(a, b, :shl)
     def lt(a, b) = binOpWType(a, b, :lt, :b1)
     def gt(a, b) = binOpWType(a, b, :gt, :b1)
@@ -103,8 +106,33 @@ module SimInfra
     def get_reg(expr, regset, type) = rlet("_reg_#{next_counter}".to_sym, regset, type, expr)
 
     def write(rfile, reg, expr) = stmt(:write, [rfile, reg, expr])
-    def writeMem(addr, expr) = stmt(:writeMem, [addr, expr])
-    def readMem(addr, type) = stmt(:readMem, [tmpvar(type), addr])
+
+    def memory_interface_name(base_name, types)
+      suffix = nil
+      if base_name == :readMem
+        type = types.first
+        suffix = type.to_s.match(/\d+/)[0] if type && type.to_s =~ /b\d+|r\d+/
+      elsif base_name == :writeMem
+        type = types[1] if types.size > 1
+        suffix = type.to_s.match(/\d+/)[0] if type && type.to_s =~ /b\d+|r\d+/
+      end
+      suffix ? "#{base_name}#{suffix}".to_sym : base_name
+    end
+
+    def writeMem(addr, expr)
+      arg_types = [addr.type, expr.type]
+      iface_name = memory_interface_name(:writeMem, arg_types)
+      SimInfra.register_memory_interface(iface_name, [], arg_types)
+      stmt(:writeMem, [addr, expr], iface_name)
+    end
+
+    def readMem(addr, type)
+      arg_types = [addr.type]
+      iface_name = memory_interface_name(:readMem, [type])
+      iface = SimInfra.register_memory_interface(iface_name, [type], arg_types)
+      v = tmpvar(type)
+      stmt(:readMem, [v, addr], iface_name)
+    end
 
     def read(rfile, reg)
       v = tmpvar(:b32)

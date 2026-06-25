@@ -1,9 +1,8 @@
 #include "memory.hh"
+
 #include "isa.hh"
 
-#include <algorithm>
 #include <cassert>
-#include <vector>
 
 extern "C" {
 #include <sys/mman.h>
@@ -46,9 +45,11 @@ public:
   uint8_t read8(isa::Addr addr) const override {
     return *reinterpret_cast<const uint8_t *>(translateAddr(addr));
   }
+
   uint16_t read16(isa::Addr addr) const override {
     return *reinterpret_cast<const uint16_t *>(translateAddr(addr));
   }
+
   uint32_t read32(isa::Addr addr) const override {
     return *reinterpret_cast<const uint32_t *>(translateAddr(addr));
   }
@@ -56,20 +57,22 @@ public:
   void write8(isa::Addr addr, uint8_t val) override {
     *reinterpret_cast<uint8_t *>(translateAddr(addr)) = val;
   }
+
   void write16(isa::Addr addr, uint16_t val) override {
     *reinterpret_cast<uint16_t *>(translateAddr(addr)) = val;
   }
+
   void write32(isa::Addr addr, uint32_t val) override {
     *reinterpret_cast<uint32_t *>(translateAddr(addr)) = val;
   }
 
   void writeBlock(std::span<const std::byte> src, isa::Addr addr) override {
-    // checkRange(addr, src.size());
+    checkRange(addr, src.size());
     std::memcpy(translateAddr(addr), src.data(), src.size());
   }
 
   void readBlock(isa::Addr addr, std::span<std::byte> dest) const override {
-    // checkRange(addr, dest.size());
+    checkRange(addr, dest.size());
     std::memcpy(dest.data(), translateAddr(addr), dest.size());
   }
 

@@ -5,23 +5,13 @@ Protea (named after Proteus, the Greek sea god known for his ability to change s
 
 ProteaIR (Protea Intermediate Representation) doesn't have canonical textual or binary representation. Instead, it is possible to serialize and deserialize it using JSON, YAML, or any other format.
 
-Usage
+Building Protea
 -----
-It is a monorepo managed by [Bundler](https://bundler.io/). To install dependencies, run:
-
 ```bash
-bundle install
+cmake -S . -B build -G <generator> [options]
 ```
 
-So every ruby tool or script can be run using `bundle exec`, for example:
-
-```bash
-bundle exec ruby tools/some_tool.rb
-```
-
-
-
-Tests
------
-
-
+Some common options:
+1) -DPROTEA_BUILD_TESTS=BOOL - An option to enable tests. Tests can be run using ctests
+2) -DTARGET_NAME_TOOLCHAIN_DIR="..." - A path to target's toolchain dir
+3) -DQEMU_PATH="..." - A path to qemu executable

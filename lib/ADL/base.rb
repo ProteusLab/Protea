@@ -4,11 +4,33 @@ require_relative "value"
 module SimInfra
     # @@instructions -array of instruction description
     # shows result of our tests in interactive Ruby (IRB) or standalone
+    @@regfiles = [] unless defined?(@@regfiles)
+    @@interface_functions = [] unless defined?(@@interface_functions)
+    @@instructions = [] unless defined?(@@instructions)
+
+    def self.register_memory_interface(name, return_types, argument_types)
+      # check whether the interface has already been registered before
+        exists = @@interface_functions.any? do |f|
+            f[:name] == name &&
+            f[:return_types] == return_types &&
+            f[:argument_types] == argument_types
+        end
+        unless exists
+            @@interface_functions << {
+                name: name,
+                return_types: return_types,
+                argument_types: argument_types,
+                kind: :memory
+            }
+        end
+    end
+
     def self.serialize(msg= nil)
         require 'yaml'
         yaml_data = YAML.dump(
           {
             regfiles: @@regfiles.map(&:to_h),
+            interface_functions: @@interface_functions.map(&:to_h),
             instructions: @@instructions.map(&:to_h),
           }
         )
@@ -16,16 +38,17 @@ module SimInfra
     end
 
     def self.state
-        yaml_data = YAML.dump(
+        YAML.dump(
             {
                 regfiles: @@regfiles.map(&:to_h),
+                interface_functions: @@interface_functions.map(&:to_h),
                 instructions: @@instructions.map(&:to_h),
             }
         )
     end
 
     # reset state
-    def siminfra_reset_module_state; @@instructions = []; end
+    def siminfra_reset_module_state; @@instructions = []; @@operands = []; end
 
     # mixin for global counter, function returns 0,1,2,....
     module GlobalCounter

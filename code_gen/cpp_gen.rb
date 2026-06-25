@@ -52,6 +52,8 @@ module CodeGen
         binary_operation(@emitter, operation, '-')
       when :mul
         binary_operation(@emitter, operation, '*')
+      when :rem
+        binary_operation(@emitter, operation, '%')
       when :div
         binary_operation(@emitter, operation, '/')
       when :shr
@@ -83,7 +85,7 @@ module CodeGen
         @emitter.emit_line("#{dst} = #{src};")
       when :new_var
         var_name = operation[:oprnds][0][:name]
-        var_type = Utility::HelperCpp.gen_type(operation[:oprnds][0][:type])
+        var_type = Utility::HelperCpp.gen_small_type(operation[:oprnds][0][:type])
         @emitter.emit_line("#{var_type} #{var_name};")
       when :cast
         dst = @mapping[operation[:oprnds][0][:name]] || operation[:oprnds][0][:name]
@@ -134,7 +136,8 @@ module CodeGen
         cond = @mapping[operation[:oprnds][1][:name]] || operation[:oprnds][1][:name]
         true_val = @mapping[operation[:oprnds][2][:name]] || operation[:oprnds][2][:name]
         false_val = @mapping[operation[:oprnds][3][:name]] || operation[:oprnds][3][:name]
-
+        true_val = true_val.nil? ? operation[:oprnds][2][:value] : true_val
+        false_val = false_val.nil? ? operation[:oprnds][3][:value] : false_val
         @emitter.emit_line("#{dst} = #{cond} ? #{true_val} : #{false_val};")
       end
     end

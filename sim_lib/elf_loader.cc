@@ -1,10 +1,11 @@
 #include "elf_loader.hh"
 
-#include <ranges>
-
 #include <elfio/elfio.hpp>
 
+#include <ranges>
+
 namespace prot::elf_loader {
+
 using namespace prot::memory;
 
 ElfLoader::~ElfLoader() = default;
@@ -58,4 +59,5 @@ void ElfLoader::loadMemory(Memory &mem) const {
                   std::byte(), seg->get_memory_size() - seg->get_file_size());
   }
 }
+
 } // namespace prot::elf_loader

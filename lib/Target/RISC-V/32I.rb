@@ -7,7 +7,7 @@ module RV32I
     extend SimInfra
 
     Interface {
-        function :sysCall
+        Function(:sysCall)
     }
 
     RegisterFile(:XRegs) {
@@ -127,7 +127,7 @@ module RV32I
     Instruction(:slti) {
         encoding *format_i(0b0010011, 0b010)
         asm { "slti {rd}, {rs1}, {imm}" }
-        code { rd[]= (rs1.s < imm).b32  }
+        code { rd[]= (rs1.s < imm.s).b32  }
     }
 
     Instruction(:sltiu) {
@@ -155,19 +155,19 @@ module RV32I
     }
 
     Instruction(:slli) {
-        encoding *format_i_shift(0b0010011, 0b001, 0b00000)
+        encoding *format_i_shift(0b0010011, 0b001, 0b0000000)
         asm { "slli {rd}, {rs1}, {imm}" }
         code { rd[]= rs1 << imm }
     }
 
     Instruction(:srli) {
-        encoding *format_i_shift(0b0010011, 0b101, 0b00000)
+        encoding *format_i_shift(0b0010011, 0b101, 0b0000000)
         asm { "srli {rd}, {rs1}, {imm}" }
         code { rd[]= rs1 >> imm }
     }
 
     Instruction(:srai) {
-        encoding *format_i_shift(0b0010011, 0b101, 0b01000)
+        encoding *format_i_shift(0b0010011, 0b101, 0b0100000)
         asm { "srai {rd}, {rs1}, {imm}" }
         code { rd[]= rs1.s >> imm }
     }
@@ -175,50 +175,50 @@ module RV32I
     Instruction(:beq) {
         encoding *format_b(0b1100011, 0b000)
         asm { "beq {rs1}, {rs2}, {imm}" }
-        code { branch(select(rs1 == rs2, pc + imm, pc + xlen)) }
+        code { branch(select(rs1 == rs2, pc + imm, pc + 4)) }
     }
 
     Instruction(:bne) {
         encoding *format_b(0b1100011, 0b001)
         asm { "bne {rs1}, {rs2}, {imm}" }
-        code { branch(select(rs1 != rs2, pc + imm, pc + xlen)) }
+        code { branch(select(rs1 != rs2, pc + imm, pc + 4)) }
     }
 
     Instruction(:blt) {
         encoding *format_b(0b1100011, 0b100)
         asm { "blt {rs1}, {rs2}, {imm}" }
-        code { branch(select(rs1.s < rs2.s, pc + imm, pc + xlen)) }
+        code { branch(select(rs1.s < rs2.s, pc + imm, pc + 4)) }
     }
 
     Instruction(:bge) {
         encoding *format_b(0b1100011, 0b101)
         asm { "bge {rs1}, {rs2}, {imm}" }
-        code { branch(select(rs1.s >= rs2.s, pc + imm, pc + xlen)) }
+        code { branch(select(rs1.s >= rs2.s, pc + imm, pc + 4)) }
     }
 
     Instruction(:bltu) {
         encoding *format_b(0b1100011, 0b110)
         asm { "bltu {rs1}, {rs2}, {imm}" }
-        code { branch(select(rs1.u < rs2.u, pc + imm, pc + xlen)) }
+        code { branch(select(rs1.u < rs2.u, pc + imm, pc + 4)) }
     }
 
     Instruction(:bgeu) {
         encoding *format_b(0b1100011, 0b111)
         asm { "bgeu {rs1}, {rs2}, {imm}" }
-        code { branch(select(rs1.u >= rs2.u, pc + imm, pc + xlen)) }
+        code { branch(select(rs1.u >= rs2.u, pc + imm, pc + 4)) }
     }
 
     Instruction(:jal) {
         encoding *format_j(0b1101111)
         asm { "jal {rd}, {imm}" }
-        code { rd[]= pc + xlen; branch(pc + imm) }
+        code { rd[]= pc + 4; branch(pc + imm) }
     }
 
     Instruction(:jalr) {
         encoding *format_i(0b1100111, 0b000)
         asm { "jalr {rd}, {rs1}, {imm}" }
-        code { 
-          let :t, :b32, pc + xlen
+        code {
+          let :t, :b32, pc + 4
           branch((rs1 + imm) & (~1))
           rd[]= t
         }
@@ -259,7 +259,7 @@ module RV32I
         asm { "lw {rd}, {imm}({rs1})" }
         code { rd[]= mem[rs1 + imm, :b32] }
     }
-    
+
     Instruction(:lbu) {
         encoding *format_i(0b0000011, 0b100)
         asm { "lbu {rd}, {imm}({rs1})" }

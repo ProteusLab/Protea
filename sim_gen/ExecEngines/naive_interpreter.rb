@@ -33,34 +33,14 @@ module SimGen
 
       def map_operands(insn)
         operands = {}
-        cnt = 0
-        insn[:map][:tree].each do |node|
-          if node[:name] == :new_var && !node[:attrs].nil? && node[:attrs].include?(:op)
-            operands[node[:oprnds][0][:name]] = "insn.operand#{cnt}"
-            cnt += 1
-          end
+        (insn[:operand_list] || []).each_with_index do |name, idx|
+          operands[name] = "insn.operand#{idx}"
         end
         operands[:pc] = 'cpu.getPC()'
         operands
       end
 
-      def cpu_write_reg(dst)
-        "cpu.set#{dst[:regset]}"
-      end
-
-      def cpu_read_reg(dst)
-        "cpu.get#{dst[:regset]}"
-      end
-
-      def cpu_write_mem(addr, val)
-        "cpu.m_memory->write(#{addr}, #{val})"
-      end
-
-      def cpu_read_mem(dst, addr)
-        "cpu.m_memory->read<#{Utility::HelperCpp.gen_small_type(dst[:type])}>(#{addr})"
-      end
-
-      def generate_exec_function(instruction)
+      def generate_exec_function(instruction, funcs)
         emitter = Utility::GenEmitter.new
         operand_map = map_operands(instruction)
 
@@ -68,8 +48,13 @@ module SimGen
         emitter.increase_indent
 
         gen = CodeGen::CppGenerator.new(emitter, operand_map)
+        funcs_name = funcs.map { |func| func[:name] }
         instruction[:code][:tree].each do |node|
-          gen.generate_statement(node)
+          if funcs_name.include?(node[:name])
+            emitter.emit_line("cpu.#{node[:name]}(#{node[:oprnds].map { |op| op[:name] }.join(', ')});")
+          else
+            gen.generate_statement(node)
+          end
         end
         emitter.decrease_indent
         emitter.emit_line('}')
@@ -80,7 +65,7 @@ module SimGen
       def generate_exec_functions(input_ir)
         emitter = Utility::GenEmitter.new
         input_ir[:instructions].each do |instruction|
-          temp_emitter = generate_exec_function(instruction)
+          temp_emitter = generate_exec_function(instruction, input_ir[:interface_functions])
           emitter.concat(temp_emitter)
         end
         emitter
