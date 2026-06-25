@@ -1,5 +1,5 @@
 # lira/lira_gen.rb
-#!/usr/bin/env ruby
+# !/usr/bin/env ruby
 
 require_relative 'ADL/base'
 require_relative 'ADL/builder'
@@ -98,9 +98,12 @@ class LiraSerializer
 
   class AluOpHandler < StmtHandler
     def handle(stmt)
-      name, oprnds = stmt.name, stmt.oprnds
-      a, b = resolved(oprnds[1]), resolved(oprnds[2])
+      name = stmt.name
+      oprnds = stmt.oprnds
+      a = resolved(oprnds[1])
+      b = resolved(oprnds[2])
       return if a.nil? || b.nil?
+
       lhs_signed = oprnds[1].type.to_s.start_with?('s')
       store(oprnds[0], ser.op_alu(name, lhs_signed, a, b))
     end
@@ -108,9 +111,12 @@ class LiraSerializer
 
   class CmpOpHandler < StmtHandler
     def handle(stmt)
-      name, oprnds = stmt.name, stmt.oprnds
-      a, b = resolved(oprnds[1]), resolved(oprnds[2])
+      name = stmt.name
+      oprnds = stmt.oprnds
+      a = resolved(oprnds[1])
+      b = resolved(oprnds[2])
       return if a.nil? || b.nil?
+
       unsigned = oprnds[1].type.to_s.start_with?('u')
       store(oprnds[0], ser.op_cmp(name, unsigned, a, b))
     end
@@ -119,24 +125,30 @@ class LiraSerializer
   class SelectHandler < StmtHandler
     def handle(stmt)
       oprnds = stmt.oprnds
-      cond, t, f = resolved(oprnds[1]), resolved(oprnds[2]), resolved(oprnds[3])
+      cond = resolved(oprnds[1])
+      t = resolved(oprnds[2])
+      f = resolved(oprnds[3])
       return if cond.nil? || t.nil? || f.nil?
+
       store(oprnds[0], builder.select(cond, t, f))
     end
   end
 
   class CastHandler < StmtHandler
     def handle(stmt)
-      name, oprnds = stmt.name, stmt.oprnds
+      name = stmt.name
+      oprnds = stmt.oprnds
       src = resolved(oprnds[1])
       return if src.nil?
+
       store(oprnds[0], ser.widen_or_truncate(name, oprnds[0].type, src, oprnds[1].type))
     end
   end
 
   class DecodeCastHandler < StmtHandler
     def handle(stmt)
-      name, oprnds = stmt.name, stmt.oprnds
+      name = stmt.name
+      oprnds = stmt.oprnds
       lhs, rhs = oprnds
       src = vars[rhs]
       if src
@@ -156,7 +168,9 @@ class LiraSerializer
       oprnds = stmt.oprnds
       val = resolved(oprnds[1])
       return if val.nil?
-      hi, lo = oprnds[2].value, oprnds[3].value
+
+      hi = oprnds[2].value
+      lo = oprnds[3].value
       width = hi - lo + 1
       width = 1 if width < 1
       store(oprnds[0], builder.extract_low(val, width))
@@ -187,8 +201,10 @@ class LiraSerializer
   class WriteRegHandler < StmtHandler
     def handle(stmt)
       oprnds = stmt.oprnds
-      reg_var, val = oprnds[0], resolved(oprnds[1])
+      reg_var = oprnds[0]
+      val = resolved(oprnds[1])
       return if val.nil?
+
       idx = operand_names.index(reg_var.name.to_s)
       if idx
         reg_num = builder.input(idx, ADLToLiraUtils.convert_type(reg_var.type))
@@ -218,6 +234,7 @@ class LiraSerializer
       out_type = ADLToLiraUtils.convert_type(oprnds[0].type)
       addr = resolved(oprnds[1])
       return if addr.nil?
+
       ef = ADLToLiraUtils.find_env_func(arch_builder, stmt.attrs.to_s, [addr.width], [out_type])
       unless ef
         warn "Environment function #{stmt.attrs} wasn't registered, skipping statement"
@@ -230,8 +247,10 @@ class LiraSerializer
   class WriteMemHandler < StmtHandler
     def handle(stmt)
       oprnds = stmt.oprnds
-      addr, val = resolved(oprnds[0]), resolved(oprnds[1])
+      addr = resolved(oprnds[0])
+      val = resolved(oprnds[1])
       return if addr.nil? || val.nil?
+
       ef = ADLToLiraUtils.find_env_func(arch_builder, stmt.attrs.to_s, [addr.width, val.width], [])
       unless ef
         warn "Environment function #{stmt.attrs} wasn't registered, skipping statement"
@@ -245,6 +264,7 @@ class LiraSerializer
     def handle(stmt)
       target = resolved(stmt.oprnds[0])
       return if target.nil?
+
       ef = ADLToLiraUtils.find_env_func(arch_builder, 'setPC', [32], [])
       unless ef
         warn "Environment function 'setPC' not registered, skipping statement"
@@ -268,8 +288,10 @@ class LiraSerializer
   class RemHandler < StmtHandler
     def handle(stmt)
       oprnds = stmt.oprnds
-      a, b = resolved(oprnds[1]), resolved(oprnds[2])
+      a = resolved(oprnds[1])
+      b = resolved(oprnds[2])
       return if a.nil? || b.nil?
+
       unsigned = oprnds[1].type.to_s.start_with?('u')
       store(oprnds[0], unsigned ? builder.rem_u(a, b) : builder.rem_s(a, b))
     end
@@ -278,8 +300,10 @@ class LiraSerializer
   class DivHandler < StmtHandler
     def handle(stmt)
       oprnds = stmt.oprnds
-      a, b = resolved(oprnds[1]), resolved(oprnds[2])
+      a = resolved(oprnds[1])
+      b = resolved(oprnds[2])
       return if a.nil? || b.nil?
+
       unsigned = oprnds[1].type.to_s.start_with?('u')
       default_val = builder.const(0, a.width)
       store(oprnds[0], unsigned ? builder.div_u(a, b, default_val) : builder.div_s(a, b, default_val))
@@ -322,13 +346,13 @@ class LiraSerializer
     sysCall: SysCallHandler,
 
     rem: RemHandler,
-    div: DivHandler,
+    div: DivHandler
   }.freeze
 
   DECODE_HANDLER_MAP = HANDLER_MAP.merge(
     let: DecodeLetHandler,
     cast: DecodeCastHandler,
-    zext: DecodeCastHandler,
+    zext: DecodeCastHandler
   ).freeze
 
   attr_reader :builder, :vars, :operand_names, :arch_builder
@@ -379,6 +403,7 @@ class LiraSerializer
     src_expected_width = ADLToLiraUtils.convert_type(src_type)
     src = @builder.extract_low(src, src_expected_width) if src.width > src_expected_width
     return src if src.width == dest_width
+
     if name == :zext || dest_type.to_s.start_with?('u')
       @builder.extend_zero(src, dest_width)
     else
@@ -436,6 +461,7 @@ class LiraSerializer
       op_scope.tree.each do |stmt|
         handler_class = DECODE_HANDLER_MAP[stmt.name]
         next unless handler_class
+
         handler_class.new(self).handle(stmt)
       end
 
@@ -475,8 +501,8 @@ class LiraSerializer
 
     base = @builder.const(0, 32)
     instr.fields.each do |field|
-      lo = field.from
-      hi = field.to
+      hi = field.from
+      lo = field.to
       width = hi - lo + 1
       width = 1 if width < 1
       field_var_name = field.value.name.to_s
@@ -487,11 +513,33 @@ class LiraSerializer
         shifted = @builder.lsl(const_val, @builder.const(lo, 32))
         base = @builder.orr(base, shifted)
       elsif field_var_name =~ /^f_(.+)$/
-        operand_name = $1
+        rest = $1
+        op_high = op_low = nil
+        operand_name = rest
+
+        # Split immediate fields encode a sub-range of the single `imm`
+        # operand: `f_imm11_5` -> imm[11:5], `f_imm12` -> imm[12].
+        if rest =~ /^imm(\d+)_(\d+)$/
+          op_high = ::Regexp.last_match(1).to_i
+          op_low = ::Regexp.last_match(2).to_i
+          operand_name = 'imm'
+        elsif rest =~ /^imm(\d+)$/
+          op_high = op_low = ::Regexp.last_match(1).to_i
+          operand_name = 'imm'
+        end
+
         idx = operand_vars.index { |v| v.name.to_s == operand_name }
         if idx
           op_val = operand_values[idx]
           op_val = @builder.extend_zero(op_val, 32) if op_val.width < 32
+
+          # Extract imm[op_high:op_low] before placing it at the field offset.
+          if op_low
+            op_val = @builder.lsr(op_val, @builder.const(op_low, 32)) if op_low != 0
+            mask = (1 << (op_high - op_low + 1)) - 1
+            op_val = @builder.and_(op_val, @builder.const(mask, 32))
+          end
+
           shifted = @builder.lsl(op_val, @builder.const(lo, 32))
           base = @builder.orr(base, shifted)
         end
@@ -556,12 +604,8 @@ class LiraSerializer
 
     decode_snippets = []
     encode_snippet = ''
-    if !instr.operand_map.empty? && operand_vars.any?
-      decode_snippets = generate_decode_snippets(instr, operand_vars)
-    end
-    if instr.fields.any? && operand_vars.any?
-      encode_snippet = generate_encode_snippet(instr, operand_vars)
-    end
+    decode_snippets = generate_decode_snippets(instr, operand_vars) if !instr.operand_map.empty? && operand_vars.any?
+    encode_snippet = generate_encode_snippet(instr, operand_vars) if instr.fields.any? && operand_vars.any?
 
     const_part = 0
     const_mask = 0
@@ -578,7 +622,8 @@ class LiraSerializer
 
     operand_sizes = operand_vars.map { |v| ADLToLiraUtils.convert_type(v.type) }
     constraint_decode = generate_constraint_snippet(const_part, const_mask)
-    encoding = Lira::InstructionEncoding.new(32, const_part, const_mask, decode_snippets, encode_snippet, constraint_decode, '')
+    encoding = Lira::InstructionEncoding.new(32, const_part, const_mask, decode_snippets, encode_snippet,
+                                             constraint_decode, '')
     Lira::Instruction.new(instr.name.to_s, [], operand_sizes, operand_names, encoding, semantic)
   ensure
     @current_instr = nil
@@ -608,12 +653,10 @@ class LiraSerializer
     @arch_builder.add_env_func(Lira::EnvironmentFunction.new('setPC', [], [32], []))
 
     SimInfra.class_variable_get(:@@instructions).each do |instr|
-      begin
-        lira_instr = convert_instruction(instr)
-        @arch_builder.add_instruction(lira_instr)
-      rescue => e
-        warn "Skipping #{instr.name}: #{e}"
-      end
+      lira_instr = convert_instruction(instr)
+      @arch_builder.add_instruction(lira_instr)
+    rescue StandardError => e
+      warn "Skipping #{instr.name}: #{e}"
     end
 
     @ops_used.each_value do |op|
@@ -651,7 +694,7 @@ end
 
 def main
   options = {
-    output: 'lira.yaml',
+    output: 'lira.yaml'
   }
 
   OptionParser.new do |opts|
@@ -677,6 +720,4 @@ def main
   puts "Serialized architecture to #{options[:output]}"
 end
 
-if __FILE__ == $0
-  main
-end
+main if __FILE__ == $0
