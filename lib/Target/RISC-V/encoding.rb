@@ -7,11 +7,11 @@ module SimInfra
     end
 
     IImm = Operand(:IImm, :s32) do
-        map { |name| let name, [:op], :s32, send("f_#{name}").s32 }
+        map { |name| let name, [:op], :s32, f_imm.s32 }
     end
 
     UImm = Operand(:UImm, :s32) do
-        map { |name| let name, [:op], :s32, (send("f_#{name}").s << 12) }
+        map { |name| let name, [:op], :s32, f_imm31_12.s << 12 }
     end
 
     IsImm = Operand(:IsImm, :s32) do
@@ -44,7 +44,7 @@ module SimInfra
         return :U, [
             field(:f_opcode, 6, 0, opcode),
             field(:f_rd, 11, 7),
-            field(:f_imm, 31, 12),
+            field(:f_imm31_12, 31, 12),
         ], XReg[:rd], UImm[:imm]
     end
 
