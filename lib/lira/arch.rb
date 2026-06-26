@@ -325,12 +325,13 @@ module Lira
   end
 
   class Instruction < Component
-    attr_accessor :operand_sizes, :operand_names, :encoding, :semantic
+    attr_accessor :operand_sizes, :operand_names, :asm_str, :encoding, :semantic
 
-    def initialize(name, attributes, operand_sizes, operand_names, encoding, semantic)
+    def initialize(name, attributes, operand_sizes, operand_names, encoding, semantic, asm_str = '')
       super(name, attributes)
       @operand_sizes = operand_sizes
       @operand_names = operand_names
+      @asm_str = asm_str
       @encoding = encoding
       @semantic = semantic
     end
@@ -339,6 +340,7 @@ module Lira
       super.merge(
         operand_sizes: operand_sizes,
         operand_names: operand_names,
+        asm_str: asm_str,
         encoding: encoding.to_h,
         semantic: semantic
       )
@@ -349,9 +351,10 @@ module Lira
       attributes = hash[:attributes] || hash['attributes'] || []
       operand_sizes = hash[:operand_sizes] || hash['operand_sizes']
       operand_names = hash[:operand_names] || hash['operand_names']
+      asm_str = hash[:asm_str] || hash['asm_str'] || ''
       encoding = InstructionEncoding.from_h(hash[:encoding] || hash['encoding'])
       semantic = StatementSeq.from_h(hash[:semantic] || hash['semantic'])
-      new(name, attributes, operand_sizes, operand_names, encoding, semantic)
+      new(name, attributes, operand_sizes, operand_names, encoding, semantic, asm_str)
     end
 
     def ==(other)
@@ -359,6 +362,7 @@ module Lira
         other.is_a?(Instruction) &&
         operand_sizes == other.operand_sizes &&
         operand_names == other.operand_names &&
+        asm_str == other.asm_str &&
         encoding == other.encoding &&
         semantic == other.semantic
     end

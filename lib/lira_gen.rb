@@ -624,7 +624,8 @@ class LiraSerializer
     constraint_decode = generate_constraint_snippet(const_part, const_mask)
     encoding = Lira::InstructionEncoding.new(32, const_part, const_mask, decode_snippets, encode_snippet,
                                              constraint_decode, '')
-    Lira::Instruction.new(instr.name.to_s, [], operand_sizes, operand_names, encoding, semantic)
+    Lira::Instruction.new(instr.name.to_s, [], operand_sizes, operand_names, encoding, semantic,
+                          instr.asm_str.to_s)
   ensure
     @current_instr = nil
   end
