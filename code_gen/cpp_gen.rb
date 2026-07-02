@@ -54,8 +54,8 @@ module CodeGen
       "cpu.get#{dst[:regset]}"
     end
 
-    def cpu_write_mem(addr, val)
-      "cpu.m_memory->write(#{addr}, #{val})"
+    def cpu_write_mem(addr, val, val_op)
+      "cpu.m_memory->write<#{Utility::HelperCpp.gen_small_type(val_op[:type])}>(#{addr}, #{val})"
     end
 
     def cpu_read_mem(dst, addr)
@@ -141,7 +141,7 @@ module CodeGen
       when :writeMem
         addr = @mapping[operation[:oprnds][0][:name]] || operation[:oprnds][0][:name]
         val = @mapping[operation[:oprnds][1][:name]] || operation[:oprnds][1][:name]
-        @emitter.emit_line("#{cpu_write_mem addr, val};")
+        @emitter.emit_line("#{cpu_write_mem addr, val, operation[:oprnds][1]};")
       when :extract
         dst = @mapping[operation[:oprnds][0][:name]] || operation[:oprnds][0][:name]
         src = @mapping[operation[:oprnds][1][:name]] || operation[:oprnds][1][:name]
@@ -149,6 +149,17 @@ module CodeGen
         @emitter.emit_line("#{dst} = static_cast<#{Utility::HelperCpp.gen_small_type operation[:oprnds][0][:type]}>(#{src} << #{operation[:oprnds][3][:value]});")
       when :sysCall
         @emitter.emit_line('cpu.doExit();')
+      when :readCSR
+        dst = @mapping[operation[:oprnds][0][:name]] || operation[:oprnds][0][:name]
+        csr = @mapping[operation[:oprnds][1][:name]] || operation[:oprnds][1][:name]
+        csr = csr.nil? ? operation[:oprnds][1][:value] : csr
+        @emitter.emit_line("#{dst} = cpu.readCSR(#{csr});")
+      when :writeCSR
+        csr = @mapping[operation[:oprnds][0][:name]] || operation[:oprnds][0][:name]
+        csr = csr.nil? ? operation[:oprnds][0][:value] : csr
+        val = @mapping[operation[:oprnds][1][:name]] || operation[:oprnds][1][:name]
+        val = val.nil? ? operation[:oprnds][1][:value] : val
+        @emitter.emit_line("cpu.writeCSR(#{csr}, #{val});")
       when :select
         dst = @mapping[operation[:oprnds][0][:name]] || operation[:oprnds][0][:name]
         cond = @mapping[operation[:oprnds][1][:name]] || operation[:oprnds][1][:name]
@@ -222,13 +233,13 @@ module CodeGen
       when :f32_mul_add_n then emit_fp_ternary('f32_mulAdd', operation,
                                                dst_type: :f32,
                                                src_types: %i[f32 f32 f32],
-                                               negate_src: [0],
+                                               negate_src: [0, 2],
                                                rm: rm)
 
       when :f64_mul_add_n then emit_fp_ternary('f64_mulAdd', operation,
                                                dst_type: :f64,
                                                src_types: %i[f64 f64 f64],
-                                               negate_src: [0],
+                                               negate_src: [0, 2],
                                                rm: rm)
 
       when :f32_mul_sub then emit_fp_ternary('f32_mulAdd', operation,
@@ -246,13 +257,13 @@ module CodeGen
       when :f32_mul_sub_n then emit_fp_ternary('f32_mulAdd', operation,
                                                dst_type: :f32,
                                                src_types: %i[f32 f32 f32],
-                                               negate_src: [0, 2],
+                                               negate_src: [0],
                                                rm: rm)
 
       when :f64_mul_sub_n then emit_fp_ternary('f64_mulAdd', operation,
                                                dst_type: :f64,
                                                src_types: %i[f64 f64 f64],
-                                               negate_src: [0, 2],
+                                               negate_src: [0],
                                                rm: rm)
 
       # Floating point comparisons (no rm)
