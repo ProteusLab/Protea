@@ -424,7 +424,7 @@ module RV64F
     encoding(*format_r_fp_no_rm_move_rd(0b1010011, 0b000, 0b1110000))
     asm { 'fmv.x.w {rd}, {frs1}' }
     code do
-      rd[] = frs1[31, 0]
+      rd[] = frs1[31, 0].s32
     end
   end
 
