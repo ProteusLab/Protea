@@ -94,7 +94,7 @@ module SimInfra
         if !func[:return_types].empty?
           @info.code.instance_eval "def #{func[:name]}(*args)
                         in_s = *args.map { |a| resolve_const(a) }
-                        in_stmt = [tmpvar(#{func[:return_types][0]})]
+                        in_stmt = [tmpvar(#{func[:return_types][0].inspect})]
                         in_stmt.concat(in_s)
                         return stmt :#{func[:name]}, in_stmt
                     end
@@ -219,6 +219,10 @@ module SimInfra
   class RegisterFileBuilder
     def r32(sym, *args)
       @info.regs << Register.new(sym, 32, args[0] ? [args[0]] : [])
+    end
+
+    def r64(sym, *args)
+      @info.regs << Register.new(sym, 64, args[0] ? [args[0]] : [])
     end
 
     def f64(sym, *args)
