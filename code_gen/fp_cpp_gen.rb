@@ -26,16 +26,12 @@ module CodeGen
     def emit_rm_setup(rm, tmp_var = '_rm_save')
       return unless rm # nil means no rm handling needed
 
-      # Currently not supported
-      if rm == 7 # DYN mode - read from fcsr at runtime
-        @emitter.emit_line('assert(0 && "CSR is currently not supported\n");')
-        @emitter.emit_line("uint_fast8_t #{tmp_var} = softfloat_roundingMode;")
-        # @emitter.emit_line('softfloat_roundingMode = cpu.getFCSR_RM();')
-      else
-        rm_const = SOFTFLOAT_RM_MAP[rm]
-        @emitter.emit_line("uint_fast8_t #{tmp_var} = softfloat_roundingMode;")
-        @emitter.emit_line("softfloat_roundingMode = #{rm_const};")
-      end
+      # DYN (rm == 7) means "use the rounding mode from fcsr". writeCSR keeps
+      # softfloat_roundingMode synced with fcsr.frm, so for DYN we leave the
+      # global as-is (save/restore only, no override).
+      rm_const = SOFTFLOAT_RM_MAP[rm]
+      @emitter.emit_line("uint_fast8_t #{tmp_var} = softfloat_roundingMode;")
+      @emitter.emit_line("softfloat_roundingMode = #{rm_const};") if rm_const
     end
 
     # Emit code to restore SoftFloat rounding mode after FP operation
@@ -110,8 +106,18 @@ module CodeGen
       end
 
       exact_arg = exact ? '1' : '0'
-      @emitter.emit_line("#{Utility::INT_INFO[dst_type]} #{tr} = #{opname}(#{ts}, #{rounding_mode}, #{exact_arg});")
-      @emitter.emit_line("#{dst} = (uint64_t)#{tr};")
+      # softfloat's fXX_to_iXX takes an explicit rounding mode argument and does
+      # not understand DYN(7); for DYN use the live softfloat_roundingMode global
+      # which writeCSR keeps synced with fcsr.frm.
+      sf_rm = rounding_mode == 7 ? 'softfloat_roundingMode' : rounding_mode
+      @emitter.emit_line("#{Utility::INT_INFO[dst_type]} #{tr} = #{opname}(#{ts}, #{sf_rm}, #{exact_arg});")
+      # RISC-V sign-extends all W-form (32-bit) integer results to XLEN, even
+      # the unsigned fcvt.wu.* variants.
+      if %i[i32 u32].include?(dst_type)
+        @emitter.emit_line("#{dst} = (uint64_t)(int64_t)(int32_t)#{tr};")
+      else
+        @emitter.emit_line("#{dst} = (uint64_t)#{tr};")
+      end
     end
 
     # There is no min/max/neg functions in softfloat,
@@ -134,16 +140,28 @@ module CodeGen
       if type == :f32
         @emitter.emit_line("bool _a_nan = ((#{t1}.v >> 23) & 0xFF) == 0xFF && (#{t1}.v & 0x7FFFFF) != 0;")
         @emitter.emit_line("bool _b_nan = ((#{t2}.v >> 23) & 0xFF) == 0xFF && (#{t2}.v & 0x7FFFFF) != 0;")
+        # signaling NaN: quiet bit (mantissa MSB) clear
+        @emitter.emit_line("bool _a_snan = _a_nan && (#{t1}.v & 0x400000) == 0;")
+        @emitter.emit_line("bool _b_snan = _b_nan && (#{t2}.v & 0x400000) == 0;")
       else
         @emitter.emit_line("bool _a_nan = ((#{t1}.v >> 52) & 0x7FF) == 0x7FF && (#{t1}.v & 0xFFFFFFFFFFFFF) != 0;")
         @emitter.emit_line("bool _b_nan = ((#{t2}.v >> 52) & 0x7FF) == 0x7FF && (#{t2}.v & 0xFFFFFFFFFFFFF) != 0;")
+        @emitter.emit_line("bool _a_snan = _a_nan && (#{t1}.v & 0x8000000000000ULL) == 0;")
+        @emitter.emit_line("bool _b_snan = _b_nan && (#{t2}.v & 0x8000000000000ULL) == 0;")
       end
+
+      # RISC-V raises the invalid-operation flag when either fmin/fmax operand
+      # is a signaling NaN.
+      @emitter.emit_line("if (_a_snan || _b_snan) softfloat_exceptionFlags |= softfloat_flag_invalid;")
 
       is_min = opname.include?('min')
 
+      canonical_nan = type == :f32 ? '0x7FC00000U' : '0x7FF8000000000000ULL'
+
       @emitter.emit_line('{')
-      # return number if one of them is NaN, if both are NaN, return second
-      @emitter.emit_line("  if (_a_nan && _b_nan) #{tr} = #{t2};")
+      # if both are NaN, return the canonical quiet NaN; if only one is NaN,
+      # return the other (numeric) operand.
+      @emitter.emit_line("  if (_a_nan && _b_nan) #{tr}.v = #{canonical_nan};")
       @emitter.emit_line("  else if (_a_nan) #{tr} = #{t2};")
       @emitter.emit_line("  else if (_b_nan) #{tr} = #{t1};")
       @emitter.emit_line('  else {')

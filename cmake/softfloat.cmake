@@ -26,18 +26,13 @@ file(GLOB SOFTFLOAT_SRC
   ${softfloat_SOURCE_DIR}/source/specialize/*.c
 )
 
-# Select platform-specific primitives based on system
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
-  file(GLOB SOFTFLOAT_PLATFORM_SRC
-    ${softfloat_SOURCE_DIR}/source/8086-SSE/*.c
-  )
-  set(SOFTFLOAT_PLATFORM_DIR ${softfloat_SOURCE_DIR}/source/8086-SSE)
-else()
-  file(GLOB SOFTFLOAT_PLATFORM_SRC
-    ${softfloat_SOURCE_DIR}/source/generic/*.c
-  )
-  set(SOFTFLOAT_PLATFORM_DIR ${softfloat_SOURCE_DIR}/source/generic)
-endif()
+# Use the RISC-V specialization so NaN handling, default-NaN values and
+# float-to-int saturation match the RISC-V F/D spec (e.g. default NaN
+# 0x7FC00000, i32_fromNaN 0x7FFFFFFF) rather than the 8086/x86 semantics.
+file(GLOB SOFTFLOAT_PLATFORM_SRC
+  ${softfloat_SOURCE_DIR}/source/RISCV/*.c
+)
+set(SOFTFLOAT_PLATFORM_DIR ${softfloat_SOURCE_DIR}/source/RISCV)
 
 list(APPEND SOFTFLOAT_SRC ${SOFTFLOAT_PLATFORM_SRC})
 
