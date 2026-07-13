@@ -624,7 +624,14 @@ class LiraSerializer
     constraint_decode = generate_constraint_snippet(const_part, const_mask)
     encoding = Lira::InstructionEncoding.new(32, const_part, const_mask, decode_snippets, encode_snippet,
                                              constraint_decode, '')
-    Lira::Instruction.new(instr.name.to_s, [], operand_sizes, operand_names, encoding, semantic,
+    # The ADL feature (module name, e.g. RV32I / RV32M) is the extension the
+    # instruction belongs to. It is *not* recoverable from the lowered semantic,
+    # so preserve it in `attributes` (the description bucket for non-derivable
+    # facts); everything else consumers need is derived from the semantic IR.
+    # Each attribute is a real YAML key/value mapping so the parser splits it
+    # (no `ns:value`-in-a-scalar fragility); consumers read the keys they know.
+    attributes = instr.feature ? [{ 'ext' => instr.feature.to_s }] : []
+    Lira::Instruction.new(instr.name.to_s, attributes, operand_sizes, operand_names, encoding, semantic,
                           instr.asm_str.to_s)
   ensure
     @current_instr = nil
