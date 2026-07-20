@@ -168,7 +168,6 @@ module CodeGen
 
         @emitter.emit_line("#{dst} = #{cond} ? #{true_val} : #{false_val};")
 
-      # PROPOSAL:
       # Add emitters for RV64F
       # Floating point arithmetic operations WITH rounding mode (SoftFloat global)
       when :f32_add then emit_fp_binary('f32_add', operation,

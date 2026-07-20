@@ -55,7 +55,6 @@ module SimInfra
     def !=(other) = @scope.ne(self, other)
     def [](r, l) = @scope.extract(self, r, l)
 
-    # PROPOSAL: add f regs
     def f = @scope.cast(self, ('f' + Utility.get_type(@type).bitsize.to_s).to_sym)
     def u = @scope.cast(self, ('u' + Utility.get_type(@type).bitsize.to_s).to_sym)
     def s = @scope.cast(self, ('s' + Utility.get_type(@type).bitsize.to_s).to_sym)

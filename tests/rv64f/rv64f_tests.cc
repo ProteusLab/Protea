@@ -1,6 +1,3 @@
-// PROPOSAL:
-// Add unit tests for rv64f.
-
 #include "decoder.hh"
 #include "memory.hh"
 #include "naive_interpreter.hh"
