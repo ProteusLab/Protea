@@ -1,12 +1,12 @@
 require_relative "scope"
 require "Utility/type"
 
-module SimInfra
+module SimInfra  
     class IrStmt
         attr_reader :name, :oprnds, :attrs
-        def initialize(name, oprnds, attrs)
-            @name = name; @oprnds = oprnds; @attrs = attrs;
-        end
+        def initialize(name, oprnds, attrs) 
+            @name = name; @oprnds = oprnds; @attrs = attrs; 
+        end 
 
         def to_h
             {
@@ -103,10 +103,10 @@ module SimInfra
         end
 
         def encoding(frmt, fields, *args)
-            @info.fields = fields
-            @info.frmt= frmt
-            map args
-
+            @info.fields = fields 
+            @info.frmt= frmt 
+            map args 
+            
             sum_bits = 0
             for f in fields
                 sum_bits += Utility.get_type(f.value.type).bitsize
@@ -180,7 +180,7 @@ module SimInfra
     end
 
     @@regfiles = []
-    class RegisterFileBuilder
+    class RegisterFileBuilder 
         def initialize(name)
             @info = RegisterFileInfo.new(name)
             @info.regs = []

@@ -13,6 +13,7 @@ module SimInfra
                 "#{@value.to_s(2)}";
             end
         end
+
         def to_h
             {
                 name: @name,
@@ -20,10 +21,12 @@ module SimInfra
                 value: @value,
             }
         end
+
         def self.from_h(h)
             Value.new(h[:name], h[:type], h[:value])
         end
     end
+
     class Constant
         attr_reader :scope, :name, :type, :value
         def initialize(scope, name, value);
@@ -31,6 +34,7 @@ module SimInfra
         end
         def let(other); raise "Assign to constant"; end
         def inspect; "#{@name}:#{@type} (#{@scope.object_id}) {=#{@const}}"; end
+
         def to_h
             {
                 name: @name,
@@ -38,6 +42,7 @@ module SimInfra
                 value: @value,
            }
         end
+
         def self.from_h(h, scope)
             Constant.new(scope, h[:name], h[:value])
         end
