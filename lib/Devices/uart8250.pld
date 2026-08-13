@@ -1,0 +1,265 @@
+abstract struct Event {
+    bool scheduled();
+}
+
+abstract struct Tick {}
+
+abstract struct Platform {
+    void clearConsoleInt();
+}
+
+abstract struct SerialDevice {
+    bool dataAvailable();
+
+    b8 readData();
+}
+
+abstract struct EventFunctionWrapper {
+    bool scheduled();
+}
+
+abstract Tick ns;
+abstract Tick curTick();
+
+device Uart8250 {
+    enum InterruptIds {
+        Modem: 0,
+        Tx: 1,
+        Rx: 2,
+        Line: 3
+    }
+
+    const b8 rx_int = 1;
+    const b8 tx_int = 2;
+    const b8 uart_mcr_loop = 16;
+
+    abstract schedule(Event* event, Tick when)
+    abstract reschedule(Event* event, Tick when)
+    abstract deschedule(Event* event)
+
+    void dataAvailable() {
+        if (ier.rda()) {
+            platform.postConsoleInt();
+            status |= rx_int;
+        }
+    }
+
+    bool intStatus() {
+        return static_cast<bool>(status);
+    }
+
+    void processIntrEvent(int interBit) {
+        if (interBit & ier) {
+            platform.postConsoleInt()
+            status |= interBit;
+            lastTxInt = curTick();
+        }
+    }
+
+    void scheduleIntr(Event* event) {
+        Tick interval = ns * 225;
+
+        if (event.scheduled() == 0) {
+            schedule(event, curTick() + interval)
+        } else {
+            reschedule(event, curTick() + interval)
+        }
+    }
+
+    void clearIntr(b8 intrBit) {
+        if ((status & intrBit) == 0) {
+            return
+        }
+
+        status &= ~intrBit
+
+        if (status == 0) {
+            platform.clearConsoleInt()
+        }
+    }
+
+    register rbr: size(0x1), offset(0x0), type(ro) {
+        enableIf { lcr.dlab == 0 }
+
+        b8 read() {
+            b8 data = 0;
+            if (device.dataAvailable()) {
+                data = device.readData();
+            }
+            // else  {
+            //      log("empty read of RX register\n")
+            // }
+
+            clearIntr(rx_int);
+
+            if (device.dataAvailable() & ier.rda()) {
+                scheduleIntr(GetPtr(rxIntrEvent));
+            } else  {
+                if (rxIntrEvent.scheduled()) {
+                    deschedule(&rxIntrEvent);
+                }
+            }
+
+            return data;
+        }
+    }
+
+    register thr: size(0x1), offset(0x0), type(wo) {
+        enableIf { lcr.dlab == 0 }
+
+        write(b8 data) {
+            device.writeData(data)
+            clearIntr(tx_int)
+            if (ier.thre()) {
+                scheduleIntr(&txIntrEvent)
+            } else  {
+                if (txIntrEvent.scheduled()) {
+                    deschedule(&txIntrEvent)
+                }
+            }
+        }
+    }
+
+    register ier: size(0x1), offset(0x1) {
+        enableIf { lcr.dlab == 0 }
+
+        field rda(0x0)
+        field thre(0x1)
+        field rls(0x2)
+        field ms(0x3)
+        field zero(0x4, 0x7)
+
+        void write(b8 data) {
+            self = data;
+
+            if (ier.thre) {
+                if (curTick() - lastTxInt > ns * 225) {
+                    txIntrEvent.process()
+                } else  {
+                    scheduleIntr(&txIntrEvent)
+                }
+            }
+            else  {
+                if (txIntrEvent.scheduled()) {
+                    deschedule(&txIntrEvent)
+                }
+                clearIntr(tx_int)
+            }
+
+            if (ier.rda & device.dataAvailable()) {
+                scheduleIntr(&rxIntrEvent)
+            }
+            else  {
+                if (rxIntrEvent.scheduled()) {
+                    deschedule(&rxIntrEvent)
+                }
+                clearIntr(rx_int)
+            }
+        }
+    }
+
+    register iir: size(0x1), offset(0x2), type(ro) {
+        field ip(0x0)
+        field iid(0x1, 0x2)
+        field zero(0x3, 0x7)
+
+        b8 read() {
+            self = 0;
+
+            if (status & rx_int) {
+                iid = InterruptIds.Rx;
+            } else  {
+                if (status & tx_int) {
+                    iid = InterruptIds.Tx;
+                    if (txIntrEvent.scheduled()) {
+                        deschedule(&txIntrEvent)
+                    }
+                    clearIntr(tx_int)
+                }
+                else  {
+                    ip = 1;
+                }
+            }
+
+            return self;
+        }
+    }
+
+    # fictitious register
+    register fcr: size(0x1), offset(0x2), type(wo) {}
+
+    register lcr: size(0x1), offset(0x3) {
+        field wls(0x0, 0x1)
+        field stb(0x2)
+        field pen(0x3)
+        field eps(0x4)
+        field sp(0x5)
+        field sb(0x6)
+        field dlab(0x7)
+    }
+
+    register mcr: size(0x1), offset(0x4) {
+        field dtr(0x0)
+        field rts(0x1)
+        field out(0x2, 0x3)
+        field loop(0x4)
+        field zero(0x5, 0x7)
+
+        void write(b8 data) {
+            if (data == (uart_mcr_loop | 0x0A)) {
+                self = 0x9A;
+            }
+        }
+    }
+
+    register lsr: size(0x1), offset(0x5), type(ro) {
+        field dr(0x0)
+        field oe(0x1)
+        field pe(0x2)
+        field fe(0x3)
+        field bi(0x4)
+        field thre(0x5)
+        field temt(0x6)
+        field zero(0x7)
+
+        b8 read() {
+            self = 0;
+            if (device.dataAvailable()) {
+                dr = 1;
+            }
+            thre = 1;
+            temt = 1;
+
+            return self;
+        }
+    }
+
+    register msr: size(0x1), offset(0x6), type(ro) {
+        field dcts(0x0)
+        field ddsr(0x1)
+        field teri(0x2)
+        field ddcd(0x3)
+        field cts(0x4)
+        field dsr(0x5)
+        field ri(0x6)
+        field dcd(0x7)
+    }
+
+    register scr: size(0x1), offset(0x7) {}
+
+    register dll: size(0x1), offset(0x0) {
+        enableIf { lcr.dlab == 1 }
+    }
+
+    register dlm: size(0x1), offset(0x1) {
+        enableIf { lcr.dlab == 1 }
+    }
+
+    abstract int status;
+    abstract Platform* platform;
+    abstract SerialDevice* device;
+    EventFunctionWrapper txIntrEvent = EventFunctionWrapper([]{ processIntrEvent(tx_int); }, "TX");
+    EventFunctionWrapper rxIntrEvent = EventFunctionWrapper([]{ processIntrEvent(rx_int); }, "RX");
+
+    Tick lastTxInt = 0;
+}

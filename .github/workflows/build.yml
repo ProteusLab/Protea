@@ -27,8 +27,25 @@ jobs:
           clang-format-version: '19'
           check-path: '.'
 
-  build:
+  test:
     needs: formatting-check
+    name: Ruby tests
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4.8'
+          bundler-cache: true
+
+      - name: Run tests
+        run: bundle exec rake test
+
+  build:
+    needs: [formatting-check, test]
     name: Build
     runs-on: ubuntu-22.04
     strategy:
