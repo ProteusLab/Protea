@@ -2,7 +2,7 @@
 CPMAddPackage(
   NAME softfloat
   GITHUB_REPOSITORY ucb-bar/berkeley-softfloat-3
-  GIT_TAG master
+  GIT_TAG a0c6494cdc11865811dec815d5c0049fba9d82a8
   DOWNLOAD_ONLY YES
   EXCLUDE_FROM_ALL True
   SYSTEM True)
