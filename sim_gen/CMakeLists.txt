@@ -36,6 +36,7 @@ add_dependencies(${PROJECT_NAME} protea_irgen)
 add_executable(sim ${PROTEA_SIMGEN_OUTPUT_SOURCES} 
   ${protea_simlib_SOURCE_DIR}/elf_loader.cc 
   ${protea_simlib_SOURCE_DIR}/base_jit.cc 
+  ${protea_simlib_SOURCE_DIR}/riscv_arch_ops.cc
   ${protea_simlib_SOURCE_DIR}/sim.cc 
   ${protea_simlib_SOURCE_DIR}/jit_factory.cc
   ${protea_simlib_SOURCE_DIR}/memory.cc)

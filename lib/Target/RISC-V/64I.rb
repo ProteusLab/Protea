@@ -6,6 +6,8 @@ module RV64I
     include SimInfra
     extend SimInfra
 
+    set_architecture_name 'RISC-V'
+
     Interface {
         function :sysCall
         function :readCSR, [:b64], [:b64]
