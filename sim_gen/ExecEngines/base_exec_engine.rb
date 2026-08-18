@@ -1,4 +1,4 @@
-require "sim_gen/Utility/sim_utility"
+require 'sim_gen/Utility/sim_utility'
 
 module SimGen
   module BaseExecEngine
@@ -6,12 +6,16 @@ module SimGen
       module_function
 
       def generate_base_exec_engine(input_ir)
-"#ifndef GENERATED_#{input_ir[:isa_name].upcase}_EXEC_ENGINE_HH_INCLUDED
+        "#ifndef GENERATED_#{input_ir[:isa_name].upcase}_EXEC_ENGINE_HH_INCLUDED
 #define GENERATED_#{input_ir[:isa_name].upcase}_EXEC_ENGINE_HH_INCLUDED
 
 #include \"cpu_state.hh\"
 #include \"isa.hh\"
 #include \"memory.hh\"
+extern \"C\" {
+#include \"softfloat.h\"
+}
+
 
 namespace prot::engine {
 using namespace prot::state;
@@ -34,11 +38,14 @@ struct ExecEngine {
       module_function
 
       def generate_base_exec_engine(input_ir)
-        max_xlen = SimGen::Helper::find_max_xlen(input_ir[:regfiles])
+        max_xlen = SimGen::Helper.find_max_xlen(input_ir[:regfiles])
 
-"#include \"base_exec_engine.hh\"
+        "#include \"base_exec_engine.hh\"
 #include \"memory.hh\"
 #include \"decoder.hh\"
+extern \"C\" {
+#include \"softfloat.h\"
+}
 
 namespace prot::engine {
 using namespace prot::state;
@@ -53,7 +60,8 @@ void ExecEngine::step(CPU &cpu) {
   cpu.increaseICount();
 }
 } // namespace prot::engine
-"      end
+"
+      end
     end
   end
 end

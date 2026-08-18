@@ -55,6 +55,7 @@ module SimInfra
     def !=(other) = @scope.ne(self, other)
     def [](r, l) = @scope.extract(self, r, l)
 
+    def f = @scope.cast(self, ('f' + Utility.get_type(@type).bitsize.to_s).to_sym)
     def u = @scope.cast(self, ('u' + Utility.get_type(@type).bitsize.to_s).to_sym)
     def s = @scope.cast(self, ('s' + Utility.get_type(@type).bitsize.to_s).to_sym)
     def b = @scope.cast(self, ('b' + Utility.get_type(@type).bitsize.to_s).to_sym)

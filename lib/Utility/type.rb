@@ -31,12 +31,12 @@ module Utility
 
     # Checks if two symbols have the same underlying type.
     # If symbol is not [usbr][1-9][0-9]* the behaviour is undefined
-    # 
+    #
     # equal_typeof :i32 :i36 -> true
     # equal_typeof :u32 :i36 -> false
     def equal_typeof(sym1, sym2)
         return get_type(sym1).typeof == get_type(sym2).typeof
-    end      
+    end
 
 private_constant :Type
 module_function :get_type, :equal_typeof

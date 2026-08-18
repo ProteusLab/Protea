@@ -123,6 +123,7 @@ module SimGen
         emitter.emit_line('// Function to stop the CPU execution')
         emitter.emit_line('void doExit() {')
         emitter.increase_indent
+        emitter.emit_line('m_exit_code = static_cast<int>(m_XRegs[10]);')
         emitter.emit_line('m_finished = true;')
         emitter.decrease_indent
         emitter.emit_line('}')
@@ -154,7 +155,7 @@ module SimGen
   module CPUState
     module Header
       module_function
-      
+
       def generate_cpu_state(input_ir)
         pc_decl = Helper.generate_pc_decl(input_ir[:regfiles])
         pc_functions = Helper.generate_pc_functions(input_ir[:regfiles])
@@ -169,6 +170,9 @@ module SimGen
 #define GENERATED_#{input_ir[:isa_name].upcase}_CPUSTATE_HH_INCLUDED
 
 #include \"memory.hh\"
+extern \"C\" {
+#include \"softfloat.h\"
+}
 
 #include <array>
 #include <cstddef>
@@ -193,6 +197,50 @@ public:
 
   // Finished flag
   bool m_finished{false};
+
+  int m_exit_code{0};
+
+  // FP rounding mode (fcsr.frm); fflags are backed by softfloat_exceptionFlags
+  std::uint64_t m_frm{0};
+
+  static uint_fast8_t frmToSoftfloat(std::uint64_t frm) {
+    switch (frm) {
+    case 0: return softfloat_round_near_even;
+    case 1: return softfloat_round_minMag;
+    case 2: return softfloat_round_min;
+    case 3: return softfloat_round_max;
+    case 4: return softfloat_round_near_maxMag;
+    default: return softfloat_round_near_even;
+    }
+  }
+
+  std::uint64_t readCSR(std::uint64_t csr) {
+    switch (csr) {
+    case 0x001: return softfloat_exceptionFlags & 0x1f;
+    case 0x002: return m_frm & 0x7;
+    case 0x003: return ((m_frm & 0x7) << 5) | (softfloat_exceptionFlags & 0x1f);
+    default: return 0;
+    }
+  }
+
+  void writeCSR(std::uint64_t csr, std::uint64_t val) {
+    switch (csr) {
+    case 0x001:
+      softfloat_exceptionFlags = val & 0x1f;
+      break;
+    case 0x002:
+      m_frm = val & 0x7;
+      softfloat_roundingMode = frmToSoftfloat(m_frm);
+      break;
+    case 0x003:
+      softfloat_exceptionFlags = val & 0x1f;
+      m_frm = (val >> 5) & 0x7;
+      softfloat_roundingMode = frmToSoftfloat(m_frm);
+      break;
+    default:
+      break;
+    }
+  }
 
   explicit CPU(Memory *mem) : m_memory(mem) {}
 

@@ -31,6 +31,24 @@ module SimGen
     module TranslationUnit
       module_function
 
+      def architecture_support_include(input_ir)
+        case input_ir[:architecture_name].to_s.upcase
+        when 'RISCV', 'RISC-V'
+          'riscv_arch_ops.hh'
+        else
+          'arch_ops.hh'
+        end
+      end
+
+      def architecture_support_type(input_ir)
+        case input_ir[:architecture_name].to_s.upcase
+        when 'RISCV', 'RISC-V'
+          'prot::arch::RISCVArchitectureSupport'
+        else
+          'prot::arch::ArchitectureSupport'
+        end
+      end
+
       def map_operands(insn)
         operands = {}
         cnt = 0
@@ -118,8 +136,11 @@ module SimGen
       def generate_naive_interpreter(input_ir)
         is_branch_function = generate_function_is_branch(input_ir)
         exec_functions = generate_exec_functions(input_ir)
+        arch_include = architecture_support_include(input_ir)
+        arch_support_type = architecture_support_type(input_ir)
 
         "#include \"naive_interpreter.hh\"
+#include \"#{arch_include}\"
 
 #include <cassert>
 
@@ -129,6 +150,8 @@ using namespace prot::isa;
 
 namespace {
 #{is_branch_function}
+
+const #{arch_support_type} kArchSupport{};
 
 #{exec_functions}
 

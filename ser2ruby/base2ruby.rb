@@ -55,7 +55,7 @@ module IRHelper
 
   def ir2ruby(ir)
     isa_name = ir[:isa_name]
-    
+
     regfiles = generate_regfiles(ir[:regfiles]).to_s
     instructions = generate_instructions(ir[:instructions]).to_s
 
