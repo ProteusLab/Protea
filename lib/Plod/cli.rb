@@ -27,12 +27,12 @@ module Plod
       when 'version', '--version', '-v' then puts Plod::VERSION
       when 'help', '--help', '-h', nil then print_help
       else
-        STDERR.puts "plod: unknown command '#{command}'"
+        warn "plod: unknown command '#{command}'"
         print_help
         1
       end
     rescue Plod::Error => e
-      STDERR.puts "plod: error: #{e.message}"
+      warn "plod: error: #{e.message}"
       1
     end
 
@@ -80,35 +80,34 @@ module Plod
     end
 
     def load_and_check(paths)
-      programs = paths.map do |path|
-        raise Plod::Error.new("no such file: #{path}") unless File.exist?(path)
+      paths.map do |path|
+        raise Plod::Error, "no such file: #{path}" unless File.exist?(path)
 
         fe = Plod::Frontend.load_file(path)
         fe.diag.merge!(Plod::Checker.check(fe.program))
         [path, fe]
       end
-      programs
     end
 
     def report(diag)
-      puts diag.to_s unless diag.empty?
+      puts diag unless diag.empty?
       if diag.error?
-        STDERR.puts "plod: #{diag.errors.size} error(s) found"
-        return false
+        warn "plod: #{diag.errors.size} error(s) found"
+        return 1
       end
-      true
+      0
     end
 
     def cmd_check
       paths = @argv
-      raise Plod::Error.new('check: no input files (try: plod check lib/Devices/clint.rb)') if paths.empty?
+      raise Plod::Error, 'check: no input files (try: plod check lib/Devices/clint.rb)' if paths.empty?
 
-      ok = true
+      status = 0
       load_and_check(paths).each do |path, fe|
         puts "Checking #{path}" if paths.size > 1
-        ok = false unless report(fe.diag)
+        status = 1 if report(fe.diag) == 1
       end
-      ok ? 0 : 1
+      status
     end
 
     def cmd_ir
@@ -117,11 +116,13 @@ module Plod
         parse_common(opts)
       end
       paths = @positional
-      raise Plod::Error.new('ir: no input files') if paths.empty?
+      raise Plod::Error, 'ir: no input files' if paths.empty?
 
       programs = load_and_check(paths)
       had_errors = programs.any? { |_, fe| fe.diag.error? }
-      programs.each { |_, fe| puts fe.diag.to_s unless fe.diag.empty? }
+      # rubocop:disable Style/HashEachMethods -- programs is an Array of [path, fe] pairs, not a Hash
+      programs.each { |_, fe| puts fe.diag unless fe.diag.empty? }
+      # rubocop:enable Style/HashEachMethods
       return 1 if had_errors
 
       merged = merge_programs(programs)
@@ -142,11 +143,13 @@ module Plod
     def cmd_build
       parse_opts(@argv) { |opts| parse_common(opts) }
       paths = @positional
-      raise Plod::Error.new('build: no input files') if paths.empty?
+      raise Plod::Error, 'build: no input files' if paths.empty?
 
       programs = load_and_check(paths)
       had_errors = programs.any? { |_, fe| fe.diag.error? }
-      programs.each { |_, fe| puts fe.diag.to_s unless fe.diag.empty? }
+      # rubocop:disable Style/HashEachMethods -- programs is an Array of [path, fe] pairs, not a Hash
+      programs.each { |_, fe| puts fe.diag unless fe.diag.empty? }
+      # rubocop:enable Style/HashEachMethods
       return 1 if had_errors
 
       targets = registry
@@ -154,10 +157,10 @@ module Plod
 
       devices = merged.devices
       devices = devices.select { |d| d.name == @device_name } if @device_name
-      raise Plod::Error.new("device '#{@device_name}' not found") if devices.empty?
+      raise Plod::Error, "device '#{@device_name}' not found" if devices.empty?
 
       if @output && devices.size > 1
-        raise Plod::Error.new('-o cannot be used with multiple devices; pass --device to select one')
+        raise Plod::Error, '-o cannot be used with multiple devices; pass --device to select one'
       end
 
       devices.each do |device|
@@ -173,30 +176,29 @@ module Plod
     end
 
     def pick_target(targets, device)
+      target = if @target_name
+                 File.exist?(@target_name) ? Plod::Backend::Target.load(@target_name) : targets[@target_name]
+               else
+                 targets.for_device(device.name)
+               end
+
       if @target_name
-        target = if File.exist?(@target_name)
-                   Plod::Backend::Target.load(@target_name)
-                 else
-                   targets[@target_name]
-                 end
-        raise Plod::Error.new("unknown target '#{@target_name}' (see: plod targets)") if target.nil?
+        raise Plod::Error, "unknown target '#{@target_name}' (see: plod targets)" if target.nil?
 
         unless target.supports_device?(device.name)
-          raise Plod::Error.new("target '#{target.name}' does not support device '#{device.name}'")
+          raise Plod::Error, "target '#{target.name}' does not support device '#{device.name}'"
         end
-        target
-      else
-        target = targets.for_device(device.name)
-        raise Plod::Error.new("no target supports device '#{device.name}' (see: plod targets)") if target.nil?
-
-        target
+      elsif target.nil?
+        raise Plod::Error, "no target supports device '#{device.name}' (see: plod targets)"
       end
+
+      target
     end
 
     def cmd_targets
       registry.all.each do |t|
         devices = t.devices.empty? ? '(any device)' : t.devices.join(', ')
-        puts format('%-16s base=%s  devices=%s', t.name, t.base, devices)
+        puts format('%<name>-16s base=%<base>s  devices=%<devices>s', name: t.name, base: t.base, devices: devices)
       end
       0
     end
@@ -209,13 +211,15 @@ module Plod
       return programs.first[1].program if programs.size == 1
 
       merged = Plod::IR::Program.new(path: nil, devices: [], components: [], objects: {}, functions: {})
-      programs.each do |_, fe|
+      # rubocop:disable Style/HashEachMethods -- programs is an Array of [path, fe] pairs, not a Hash
+      programs.each do |_path, fe|
         prog = fe.program
         merged.devices.concat(prog.devices)
         merged.components.concat(prog.components)
         merged.objects.merge!(prog.objects)
         merged.functions.merge!(prog.functions)
       end
+      # rubocop:enable Style/HashEachMethods
       merged
     end
 

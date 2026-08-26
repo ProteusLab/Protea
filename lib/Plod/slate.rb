@@ -14,7 +14,11 @@ module Plod
       undef_method(m) unless KEEP.include?(m)
     end
 
-    def method_missing(name, *args)
+    def respond_to_missing?(_name, _include_private = false)
+      false
+    end
+
+    def method_missing(name, *_args)
       raise Plod::Error.new("unknown name '#{name}'", Plod::Loc.capture)
     end
   end

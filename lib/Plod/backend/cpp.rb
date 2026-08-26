@@ -20,7 +20,7 @@ module Plod
       def initialize(program, device, target)
         @program = program
         @device = device.is_a?(IR::DeviceDecl) ? device : program.devices.find { |d| d.name == device.to_sym }
-        raise Plod::Error.new("device '#{device}' not found in program") if @device.nil?
+        raise Plod::Error, "device '#{device}' not found in program" if @device.nil?
 
         @target = target
         @register = nil
@@ -29,21 +29,23 @@ module Plod
       end
 
       def generate
-        raise Plod::Error.new("target does not support device #{@device.name}") unless @target.supports_device?(@device.name)
+        unless @target.supports_device?(@device.name)
+          raise Plod::Error, "target does not support device #{@device.name}"
+        end
 
         preamble
         line('namespace gem5 {')
         line('')
-        @device.fields.map { |f| f.type }.uniq.each { |t| emit_struct(t) if struct_type?(t) }
+        @device.fields.map(&:type).uniq.each { |t| emit_struct(t) if struct_type?(t) }
         device_class
         line('}')
-        @out.join("\n") + "\n"
+        "#{@out.join("\n")}\n"
       end
 
       private
 
       def line(text = '')
-        @out << ('    ' * @indent + text)
+        @out << (('    ' * @indent) + text)
       end
 
       def indent
@@ -76,7 +78,7 @@ module Plod
         when Types::Ref then "#{deref_cpp_name(type.stored)}&"
         when Types::Named then type.name
         else
-          raise Plod::Error.new("cannot map type '#{type.name}' to C++")
+          raise Plod::Error, "cannot map type '#{type.name}' to C++"
         end
       end
 
@@ -173,7 +175,9 @@ module Plod
       def device_members
         @device.enums.each do |e|
           line("enum #{e.name} {")
+          # rubocop:disable Lint/HashEachMethods -- EnumDecl#values is a DTO member (Array), not Hash#values
           indent { e.values.each { |k, v| line("#{k} = #{v},") } }
+          # rubocop:enable Lint/HashEachMethods
           line('};')
           line('')
         end
@@ -231,8 +235,6 @@ module Plod
             a.name.to_s
           elsif a.is_a?(String)
             "\"#{a}\""
-          elsif a.is_a?(TrueClass) || a.is_a?(FalseClass)
-            a.to_s
           else
             a.to_s
           end
@@ -304,21 +306,14 @@ module Plod
         full_init = ([base_init] + init_list).join(', ')
         line("#{@device.name}(const #{@device.name}Params &params)")
         line("    : #{full_init} {")
-        if ctor && ctor.body && !ctor.body.empty?
-          indent { ctor.body.each { |s| stmt(s) } }
-        end
+        indent { ctor.body.each { |s| stmt(s) } } if ctor&.body && !ctor.body.empty?
         line('}')
         line('')
       end
 
       def dispatchable(access)
-        @device.registers.select do |r|
-          if access == :read
-            r.access != :wo
-          else
-            r.access != :ro
-          end
-        end
+        excluded = access == :read ? :wo : :ro
+        @device.registers.reject { |r| r.access == excluded }
       end
 
       def emit_read
@@ -440,7 +435,7 @@ module Plod
         when :initcall
           line("#{node.field}(#{node.args.map { |a| expr(a) }.join(', ')});")
         else
-          raise Plod::Error.new("cannot emit statement '#{node.kind}'")
+          raise Plod::Error, "cannot emit statement '#{node.kind}'"
         end
       end
 
@@ -477,7 +472,7 @@ module Plod
         when :self then @register
         when :var then @device.registers.find { |r| r.name == node.name }
         else
-          raise Plod::Error.new("invalid register operand '#{node.kind}'")
+          raise Plod::Error, "invalid register operand '#{node.kind}'"
         end
       end
 
@@ -517,7 +512,7 @@ module Plod
         when :call
           "#{node.name}(#{node.args.map { |a| expr(a) }.join(', ')})"
         else
-          raise Plod::Error.new("cannot emit expression '#{node.kind}'")
+          raise Plod::Error, "cannot emit expression '#{node.kind}'"
         end
       end
 
@@ -537,6 +532,7 @@ module Plod
         if recv.kind == :self && recv.subject == :register && @register
           return "#{@register.name}_#{node.name}(#{args.join(', ')})"
         end
+
         if recv.kind == :var
           reg = @device.registers.find { |r| r.name == recv.name }
           return "#{reg.name}_#{node.name}(#{args.join(', ')})" if reg

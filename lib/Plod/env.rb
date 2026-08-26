@@ -30,7 +30,7 @@ module Plod
     end
 
     def lookup(name)
-      @bindings[name.to_sym] || (@parent&.lookup(name.to_sym))
+      @bindings[name.to_sym] || @parent&.lookup(name.to_sym)
     end
 
     def defined_here?(name)

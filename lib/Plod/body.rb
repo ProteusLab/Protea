@@ -53,7 +53,7 @@ module Plod
       @ctx.member_access(self, name, args, block)
     end
 
-    def respond_to_missing?(name, include_private = false)
+    def respond_to_missing?(_name, _include_private = false)
       true
     end
   end
@@ -88,7 +88,7 @@ module Plod
       @ctx.get_elem(self, index)
     end
 
-    def method_missing(name, *args, &block)
+    def method_missing(name, *args)
       field = @reg.fields.find { |f| f.name == name }
       return @ctx.reg_field_expr(self, @reg, name) if field
 
@@ -96,13 +96,13 @@ module Plod
       return @ctx.reg_method_expr(self, @reg, method_decl, args) if method_decl
 
       raise Plod::Error.new(
-        "unknown field or method '#{name}' for register #{@reg.name}" \
-        " (fields: #{@reg.fields.map(&:name).join(', ')};" \
-        " methods: #{@reg.methods.map(&:name).join(', ')})", Loc.capture
+        "unknown field or method '#{name}' for register #{@reg.name} " \
+        "(fields: #{@reg.fields.map(&:name).join(', ')}; " \
+        "methods: #{@reg.methods.map(&:name).join(', ')})", Loc.capture
       )
     end
 
-    def respond_to_missing?(name, include_private = false)
+    def respond_to_missing?(_name, _include_private = false)
       true
     end
   end
@@ -115,18 +115,18 @@ module Plod
       @enum = enum
     end
 
-    def method_missing(name, *args)
+    def method_missing(name, *_args)
       if @enum.values.key?(name)
         @ctx.enum_val_expr(@enum, name)
       else
         raise Plod::Error.new(
-          "unknown enum value '#{name}' for enum #{@enum.name}" \
-          " (available: #{@enum.values.keys.join(', ')})", Loc.capture
+          "unknown enum value '#{name}' for enum #{@enum.name} " \
+          "(available: #{@enum.values.keys.join(', ')})", Loc.capture
         )
       end
     end
 
-    def respond_to_missing?(name, include_private = false)
+    def respond_to_missing?(name, _include_private = false)
       @enum.values.key?(name)
     end
   end
@@ -178,7 +178,7 @@ module Plod
       @frontend = frontend
       @env = env
       @stmts = []
-      @provisional = {}
+      @provisional = {}.compare_by_identity
     end
 
     def loc = Loc.capture
@@ -257,9 +257,7 @@ module Plod
       recv_type = Plod::IR.node_type(recv_node)
       consume(recv_expr)
 
-      if recv_type.nil?
-        return late_bound_call(recv_expr, name, args, 'receiver has unknown type')
-      end
+      return late_bound_call(recv_expr, name, args, 'receiver has unknown type') if recv_type.nil?
 
       deref_type = recv_type.deref
 
@@ -271,9 +269,7 @@ module Plod
 
         field = component.fields.find { |f| f.name == name }
         unless field.nil?
-          unless args.empty?
-            raise Plod::Error.new("field '#{name}' of #{component.name} does not take arguments", loc)
-          end
+          raise Plod::Error.new("field '#{name}' of #{component.name} does not take arguments", loc) unless args.empty?
 
           return Expr.new(self, IR::GetField.new(recv: recv_node, name: name, type: field.type, loc: loc))
         end
@@ -294,9 +290,9 @@ module Plod
         end
 
         raise Plod::Error.new(
-          "unknown member '#{name}' for struct #{component.name}" \
-          " (fields: #{component.fields.map(&:name).join(', ')};" \
-          " methods: #{component.methods.map(&:name).join(', ')})", loc
+          "unknown member '#{name}' for struct #{component.name} " \
+          "(fields: #{component.fields.map(&:name).join(', ')}; " \
+          "methods: #{component.methods.map(&:name).join(', ')})", loc
         )
       end
 
@@ -315,7 +311,7 @@ module Plod
 
     def provisional(node)
       emit(IR::ExprStmt.new(expr: node, loc: node.loc))
-      @provisional[node.object_id] = @stmts.size - 1
+      @provisional[node] = @stmts.size - 1
       Expr.new(self, node)
     end
 
@@ -332,7 +328,7 @@ module Plod
     def consume_node(node)
       return unless node.is_a?(Struct)
 
-      idx = @provisional.delete(node.object_id)
+      idx = @provisional.delete(node)
       @stmts[idx] = nil if idx
       node.members.each do |m|
         v = node[m]
@@ -436,15 +432,13 @@ module Plod
       raise Plod::Error.new("#{what}: expected a type, got #{value.inspect}", loc)
     end
 
-    def method_missing(name, *args, &block)
+    def method_missing(name, *args)
       binding = @env.lookup(name)
       if binding
         case binding.kind
         when :var
           return Expr.new(self, IR::VarRef.new(name: name, type: binding.type, loc: loc))
-        when :regfield
-          return Expr.new(self, binding.payload)
-        when :self
+        when :regfield, :self
           return Expr.new(self, binding.payload)
         when :reg
           return RegExpr.new(self, binding.payload)
@@ -496,10 +490,8 @@ module Plod
       return rt if rt.named? || rt.is_a?(Types::Str)
       return lt unless lt.numeric? && rt.numeric?
 
-      if lt.bits? && rt.bits?
-        lt.size >= rt.size ? lt : rt
-      elsif lt.bits?
-        lt
+      if lt.bits?
+        rt.bits? && rt.size > lt.size ? rt : lt
       elsif rt.bits?
         rt
       else

@@ -17,7 +17,7 @@ module Plod
       def self.from_h(raw, path = nil)
         data = raw.transform_keys(&:to_sym)
         unknown = data.keys - ATTRS
-        raise Plod::Error.new("target #{path}: unknown keys #{unknown.join(', ')}") unless unknown.empty?
+        raise Plod::Error, "target #{path}: unknown keys #{unknown.join(', ')}" unless unknown.empty?
 
         target = new
         target.instance_variable_set(:@name, data[:name] || File.basename(path.to_s, '.yaml'))
@@ -35,8 +35,8 @@ module Plod
 
       def validate!(path)
         where = "target #{path || name}"
-        raise Plod::Error.new("#{where}: 'base' is required") if @base.nil? || @base.empty?
-        raise Plod::Error.new("#{where}: 'base' must be a string") unless @base.is_a?(String)
+        raise Plod::Error, "#{where}: 'base' is required" if @base.nil? || @base.empty?
+        raise Plod::Error, "#{where}: 'base' must be a string" unless @base.is_a?(String)
       end
 
       def supports_device?(device_name)
@@ -51,7 +51,7 @@ module Plod
         def initialize(paths)
           @targets = {}
           paths.each do |dir|
-            Dir[File.join(dir, '*.yaml')].sort.each do |file|
+            Dir[File.join(dir, '*.yaml')].each do |file|
               target = Target.load(file)
               @targets[target.name.to_s] = target
             end

@@ -44,7 +44,10 @@ module Plod
     def check_duplicate_members(component)
       names = component.fields.map(&:name) + component.methods.map(&:name)
       names.tally.each do |name, count|
-        error("duplicate member '#{name}' in #{component.abstract ? 'abstract struct' : 'struct'} #{component.name}", component) if count > 1
+        if count > 1
+          error("duplicate member '#{name}' in #{component.abstract ? 'abstract struct' : 'struct'} #{component.name}",
+                component)
+        end
       end
     end
 
@@ -77,8 +80,14 @@ module Plod
     end
 
     def check_register(device, reg)
-      error("register #{reg.name}: size must be a positive integer, got #{reg.size.inspect}", reg) unless reg.size.is_a?(Integer) && reg.size.positive?
-      error("register #{reg.name}: offset must be a non-negative integer, got #{reg.offset.inspect}", reg) unless reg.offset.is_a?(Integer) && reg.offset >= 0
+      unless reg.size.is_a?(Integer) && reg.size.positive?
+        error("register #{reg.name}: size must be a positive integer, got #{reg.size.inspect}",
+              reg)
+      end
+      unless reg.offset.is_a?(Integer) && reg.offset >= 0
+        error("register #{reg.name}: offset must be a non-negative integer, got #{reg.offset.inspect}",
+              reg)
+      end
       if reg.seqn && (!reg.seqn.is_a?(Integer) || reg.seqn < 1)
         error("register #{reg.name}: seqn must be a positive integer, got #{reg.seqn.inspect}", reg)
       end
@@ -96,12 +105,13 @@ module Plod
       end
 
       reg_bits = Types::Bits.new(reg.size * 8)
-      if read && read.ret_type && read.ret_type != reg_bits
+      if read&.ret_type && read.ret_type != reg_bits
         error("read method of #{reg.name} must return #{reg_bits.name}, got #{read.ret_type.name}", read)
       end
       if write
         data_arg = write.args.first
-        if data_arg.nil? || data_arg[0] != :data || !data_arg[1].is_a?(Types::Bits) || !type_matches(data_arg[1], reg_bits)
+        data_t = data_arg && data_arg[1]
+        if data_arg.nil? || data_arg[0] != :data || !data_t.is_a?(Types::Bits) || !type_matches?(data_t, reg_bits)
           error("write method of #{reg.name} must take (data: #{reg_bits.name}) as its first argument", write)
         end
       end
@@ -112,9 +122,9 @@ module Plod
 
       ctx = TypeContext.new(self, reg_env(device, reg), nil)
       t = ctx.expr_type(reg.enable_if)
-      unless t.nil? || t.boolean? || t.numeric?
-        error("enableIf of #{reg.name} must be boolean or numeric, got #{t.name}", reg.enable_if)
-      end
+      return if t.nil? || t.boolean? || t.numeric?
+
+      error("enableIf of #{reg.name} must be boolean or numeric, got #{t.name}", reg.enable_if)
     end
 
     def check_reg_field(reg, field)
@@ -127,7 +137,8 @@ module Plod
 
       return unless field.lsb + field.size > total_bits
 
-      error("field #{reg.name}.#{field.name} [#{field.lsb}..#{field.lsb + field.size - 1}] exceeds register width of #{total_bits} bits", field)
+      field_range = "#{field.lsb}..#{field.lsb + field.size - 1}"
+      error("field #{reg.name}.#{field.name} [#{field_range}] exceeds register width of #{total_bits} bits", field)
     end
 
     def check_reg_field_overlaps(reg)
@@ -143,13 +154,13 @@ module Plod
       device.registers.each do |a|
         device.registers.each do |b|
           next if a.object_id >= b.object_id
-          next if a.access == :ro && b.access == :wo || a.access == :wo && b.access == :ro
+          next if (a.access == :ro && b.access == :wo) || (a.access == :wo && b.access == :ro)
           next if a.enable_if || b.enable_if
 
           a_lo = a.offset
-          a_hi = a.offset + a.size * (a.seqn || 1)
+          a_hi = a.offset + (a.size * (a.seqn || 1))
           b_lo = b.offset
-          b_hi = b.offset + b.size * (b.seqn || 1)
+          b_hi = b.offset + (b.size * (b.seqn || 1))
           next unless a_lo < b_hi && b_lo < a_hi
 
           warning("registers #{a.name} [#{format('0x%x', a_lo)}..#{format('0x%x', a_hi)}) and " \
@@ -160,9 +171,14 @@ module Plod
 
     def check_enum(enum_decl)
       error("enum #{enum_decl.name} has no values", enum_decl) if enum_decl.values.empty?
+      # rubocop:disable Lint/HashEachMethods -- EnumDecl#values is a DTO member (Array), not Hash#values
       enum_decl.values.each do |key, value|
-        error("enum #{enum_decl.name}.#{key} must be an integer, got #{value.inspect}", enum_decl) unless value.is_a?(Integer)
+        unless value.is_a?(Integer)
+          error("enum #{enum_decl.name}.#{key} must be an integer, got #{value.inspect}",
+                enum_decl)
+        end
       end
+      # rubocop:enable Lint/HashEachMethods
     end
 
     def check_const(const_decl)
@@ -177,7 +193,9 @@ module Plod
           error("constant #{const_decl.name} value #{v} does not fit in #{t.name}", const_decl)
         end
       when String
-        error("constant #{const_decl.name} of type #{t.name} cannot take a string value", const_decl) unless t.is_a?(Types::Str)
+        unless t.is_a?(Types::Str)
+          error("constant #{const_decl.name} of type #{t.name} cannot take a string value", const_decl)
+        end
       when TrueClass, FalseClass
         error("constant #{const_decl.name} of type #{t.name} cannot take a boolean value", const_decl) unless t.boolean?
       end
@@ -194,9 +212,7 @@ module Plod
           next
         end
         field = device.fields.find { |f| f.name == init.field }
-        if field.abstract
-          error("Init of abstract field '#{init.field}' is not allowed", init)
-        end
+        error("Init of abstract field '#{init.field}' is not allowed", init) if field.abstract
       end
       inited = ctor.inits.map(&:field).tally
       inited.each do |name, count|
@@ -259,7 +275,8 @@ module Plod
         target_t = ctx.expr_type(stmt.target)
         value_t = ctx.expr_type(stmt.value)
         check_assignable(stmt, stmt.target, target_t)
-        check_compat(value_t, target_t, stmt.value, "assignment to #{describe(stmt.target)} of type #{target_t&.name || '?'}")
+        check_compat(value_t, target_t, stmt.value,
+                     "assignment to #{describe(stmt.target)} of type #{target_t&.name || '?'}")
       when :exprstmt
         t = ctx.expr_type(stmt.expr)
         if t && !t.void? && stmt.expr.kind != :call && stmt.expr.kind != :mcall
@@ -299,9 +316,7 @@ module Plod
         ct = ctx.expr_type(container)
         elem_t = elem_type(ct, container, ctx)
         idx_t = ctx.expr_type(stmt.index)
-        unless idx_t.nil? || idx_t.numeric?
-          error("index must be numeric, got #{idx_t.name}", stmt.index)
-        end
+        error("index must be numeric, got #{idx_t.name}", stmt.index) unless idx_t.nil? || idx_t.numeric?
         vt = ctx.expr_type(stmt.value)
         check_compat(vt, elem_t, stmt.value, "element assignment of type #{elem_t&.name || '?'}")
       when :initcall
@@ -351,19 +366,17 @@ module Plod
         return
       end
 
-      return if type_matches(actual, expected)
+      return if type_matches?(actual, expected)
 
       error("#{what}, got #{actual.name}", node)
     end
 
-    def type_matches(actual, expected)
+    def type_matches?(actual, expected)
       return true if actual == expected
       return true if actual.is_a?(Types::Named) && expected.is_a?(Types::Named)
       return true if actual.is_a?(Types::Ptr) && expected.is_a?(Types::Ptr)
 
-      if actual.is_a?(Types::Bits) && expected.is_a?(Types::Bits)
-        return actual.size <= expected.size
-      end
+      return actual.size <= expected.size if actual.is_a?(Types::Bits) && expected.is_a?(Types::Bits)
       return true if actual.is_a?(Types::Int) && (expected.bits? || expected.boolean?)
       return true if expected.is_a?(Types::Int) && (actual.bits? || actual.boolean?)
       return true if actual.boolean? && (expected.bits? || expected.is_a?(Types::Int))
@@ -404,14 +417,18 @@ module Plod
       def check_return(stmt)
         ret_t = @method_decl&.ret_type
         if stmt.value.nil?
-          error("method #{@method_decl.name} returns #{@method_decl.ret_type ? @method_decl.ret_type.name : 'void'} but return has no value", stmt) if ret_t
+          if ret_t
+            ret_name = @method_decl.ret_type ? @method_decl.ret_type.name : 'void'
+            error("method #{@method_decl.name} returns #{ret_name} but return has no value", stmt)
+          end
           return
         end
         value_t = expr_type(stmt.value)
         if ret_t.nil?
           error("void method #{@method_decl.name} cannot return a value", stmt)
         else
-          @checker.send(:check_compat, value_t, ret_t, stmt.value, "return type of #{@method_decl.name} is #{ret_t.name}")
+          @checker.send(:check_compat, value_t, ret_t, stmt.value,
+                        "return type of #{@method_decl.name} is #{ret_t.name}")
         end
       end
 
@@ -492,9 +509,7 @@ module Plod
         when :getelem
           ct = expr_type(node.container)
           idx_t = expr_type(node.index)
-          unless idx_t.nil? || idx_t.numeric?
-            error("index must be numeric, got #{idx_t.name}", node.index)
-          end
+          error("index must be numeric, got #{idx_t.name}", node.index) unless idx_t.nil? || idx_t.numeric?
           if ct.nil?
             nil
           elsif ct.is_a?(Types::Array)
@@ -521,8 +536,6 @@ module Plod
           method_call_type(node)
         when :call
           call_type(node)
-        else
-          nil
         end
       end
 
@@ -572,7 +585,9 @@ module Plod
       end
 
       def operand_pair_ok?(lt, rt)
-        (lt.numeric? && rt.numeric?) || (lt.is_a?(Types::Str) && rt.is_a?(Types::Str)) || lt.is_a?(Types::Named) || rt.is_a?(Types::Named)
+        (lt.numeric? && rt.numeric?) ||
+          (lt.is_a?(Types::Str) && rt.is_a?(Types::Str)) ||
+          lt.is_a?(Types::Named) || rt.is_a?(Types::Named)
       end
 
       def find_field(reg_node, field_name)
@@ -602,10 +617,9 @@ module Plod
         target = recv_t.deref
 
         method_decl = nil
-        reg = nil
         if node.recv.kind == :self && @register
           method_decl = @register.methods.find { |m| m.name == node.name }
-          reg = @register
+          @register
         elsif node.recv.kind == :var
           binding = lookup(node.recv.name)
           if binding && binding[0] == :reg
@@ -655,14 +669,16 @@ module Plod
         binding[1].ret_type
       end
 
-      def check_arg_types(args)
-        args.each { |a| yield a }
+      def check_arg_types(args, &)
+        args.each(&)
       end
 
       def check_call(node, method_decl)
         expected = method_decl.args
         if node.args.size != expected.size
-          error("wrong number of arguments for '#{method_decl.name}': expected #{expected.size}, got #{node.args.size}", node)
+          expected_n = expected.size
+          error("wrong number of arguments for '#{method_decl.name}': " \
+                "expected #{expected_n}, got #{node.args.size}", node)
           return
         end
         node.args.each_with_index do |arg, i|
@@ -670,9 +686,11 @@ module Plod
           expected_type = expected[i][1]
           next if actual.nil? || expected_type.nil?
 
-          next if @checker.send(:type_matches, actual, expected_type)
+          next if @checker.send(:type_matches?, actual, expected_type)
 
-          error("argument #{expected[i][0]} of '#{method_decl.name}' expects #{expected_type.name}, got #{actual.name}", arg)
+          error(
+            "argument #{expected[i][0]} of '#{method_decl.name}' expects #{expected_type.name}, got #{actual.name}", arg
+          )
         end
       end
     end

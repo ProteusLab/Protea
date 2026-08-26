@@ -41,7 +41,10 @@ module Plod
     end
 
     def method_missing(name, value)
-      raise Plod::Error.new("enum value #{name} must be an integer, got #{value.inspect}", Loc.capture) unless value.is_a?(Integer)
+      unless value.is_a?(Integer)
+        raise Plod::Error.new("enum value #{name} must be an integer, got #{value.inspect}",
+                              Loc.capture)
+      end
 
       @decl.values[name.to_sym] = value
       nil
@@ -57,7 +60,7 @@ module Plod
     include Types::BitSugar
     include DeclTypes
 
-    attr_reader :decl
+    attr_reader :decl, :enable_if_proc, :method_procs
 
     def initialize(frontend, name, props)
       @frontend = frontend
@@ -73,14 +76,16 @@ module Plod
         loc: Loc.capture
       )
       @enable_if_proc = nil
-      @method_procs = {}
+      @method_procs = {}.compare_by_identity
     end
 
     def self.normalize_access(value)
       return :rw if value.nil?
 
       symbol = value.to_sym
-      raise Plod::Error.new("invalid register access type '#{value}' (use :ro, :wo or :rw)", Loc.capture) unless %i[ro wo rw].include?(symbol)
+      unless %i[ro wo rw].include?(symbol)
+        raise Plod::Error.new("invalid register access type '#{value}' (use :ro, :wo or :rw)", Loc.capture)
+      end
 
       symbol
     end
@@ -110,7 +115,8 @@ module Plod
         lsb = lsb[0]
       end
       unless lsb.is_a?(Integer) && size.is_a?(Integer) && lsb >= 0 && size >= 1
-        raise Plod::Error.new("invalid bit field '#{name}': use field(:name, lsb, size) or field(:name, lo..hi)", Loc.capture)
+        raise Plod::Error.new("invalid bit field '#{name}': use field(:name, lsb, size) or field(:name, lo..hi)",
+                              Loc.capture)
       end
 
       @decl.fields << IR::RegFieldDecl.new(name: name.to_sym, lsb: lsb, size: size, loc: Loc.capture)
@@ -131,13 +137,9 @@ module Plod
         body: [], abstract: false, loc: Loc.capture
       )
       @decl.methods << decl_method
-      @method_procs[decl_method.object_id] = block
+      @method_procs[decl_method] = block
       nil
     end
-
-    def enable_if_proc = @enable_if_proc
-
-    def method_procs = @method_procs
   end
 
   class ComponentDeclContext < Slate
@@ -145,7 +147,7 @@ module Plod
     include Types::BitSugar
     include DeclTypes
 
-    attr_reader :decl
+    attr_reader :decl, :method_procs
 
     def initialize(frontend, name, abstract:)
       @frontend = frontend
@@ -153,16 +155,12 @@ module Plod
         name: name, methods: [], fields: [], abstract: abstract, loc: Loc.capture
       )
       @abstract = abstract
-      @method_procs = {}
+      @method_procs = {}.compare_by_identity
     end
 
     def Method(name, **args, &block)
-      if @abstract && block
-        raise Plod::Error.new("abstract struct method '#{name}' must not have a body", Loc.capture)
-      end
-      if !@abstract && block.nil?
-        raise Plod::Error.new("struct method '#{name}' requires a body", Loc.capture)
-      end
+      raise Plod::Error.new("abstract struct method '#{name}' must not have a body", Loc.capture) if @abstract && block
+      raise Plod::Error.new("struct method '#{name}' requires a body", Loc.capture) if !@abstract && block.nil?
 
       args_list, ret_type = process_signature(args, "method #{name}")
       decl_method = IR::MethodDecl.new(
@@ -170,7 +168,7 @@ module Plod
         body: @abstract ? nil : [], abstract: @abstract, loc: Loc.capture
       )
       @decl.methods << decl_method
-      @method_procs[decl_method.object_id] = block if block
+      @method_procs[decl_method] = block if block
       nil
     end
 
@@ -181,8 +179,6 @@ module Plod
       )
       nil
     end
-
-    def method_procs = @method_procs
   end
 
   class DeviceDeclContext < Slate
@@ -190,7 +186,7 @@ module Plod
     include Types::BitSugar
     include DeclTypes
 
-    attr_reader :decl, :register_ctxs
+    attr_reader :decl, :register_ctxs, :method_procs, :lambda_procs, :ctor_proc
 
     def initialize(frontend, name)
       @frontend = frontend
@@ -199,8 +195,8 @@ module Plod
         lambdas: [], ctor: nil, loc: Loc.capture
       )
       @register_ctxs = []
-      @method_procs = {}
-      @lambda_procs = {}
+      @method_procs = {}.compare_by_identity
+      @lambda_procs = {}.compare_by_identity
       @ctor_proc = nil
     end
 
@@ -223,7 +219,7 @@ module Plod
         body: [], abstract: false, loc: Loc.capture
       )
       @decl.methods << decl_method
-      @method_procs[decl_method.object_id] = block
+      @method_procs[decl_method] = block
       nil
     end
 
@@ -241,9 +237,12 @@ module Plod
       check_dup(@decl.fields.map(&:name), name, 'field')
       expect_type!(type, "field #{name}")
       init_args.each do |arg|
-        next if arg.is_a?(Integer) || arg.is_a?(String) || arg.is_a?(TrueClass) || arg.is_a?(FalseClass) || arg.is_a?(IR::LambdaDecl)
+        if arg.is_a?(Integer) || arg.is_a?(String) || arg.is_a?(TrueClass) || arg.is_a?(FalseClass) || arg.is_a?(IR::LambdaDecl)
+          next
+        end
 
-        raise Plod::Error.new("field #{name}: init arguments must be constants or Lambda, got #{arg.inspect}", Loc.capture)
+        raise Plod::Error.new("field #{name}: init arguments must be constants or Lambda, got #{arg.inspect}",
+                              Loc.capture)
       end
 
       @decl.fields << IR::FieldDecl.new(
@@ -275,7 +274,8 @@ module Plod
       check_dup(@decl.consts.map(&:name), name, 'constant')
       expect_type!(type, "constant #{name}")
       unless value.is_a?(Integer) || value.is_a?(String) || value.is_a?(TrueClass) || value.is_a?(FalseClass)
-        raise Plod::Error.new("constant #{name}: value must be an integer, string or boolean, got #{value.inspect}", Loc.capture)
+        raise Plod::Error.new("constant #{name}: value must be an integer, string or boolean, got #{value.inspect}",
+                              Loc.capture)
       end
 
       @decl.consts << IR::ConstDecl.new(name: name.to_sym, type: type, value: value, loc: Loc.capture)
@@ -290,7 +290,7 @@ module Plod
         name: :"lambda_#{@decl.lambdas.size}", args: args_list, body: [], loc: Loc.capture
       )
       @decl.lambdas << lambda_decl
-      @lambda_procs[lambda_decl.object_id] = block
+      @lambda_procs[lambda_decl] = block
       lambda_decl
     end
 
@@ -304,12 +304,6 @@ module Plod
       @ctor_proc = block
       nil
     end
-
-    def method_procs = @method_procs
-
-    def lambda_procs = @lambda_procs
-
-    def ctor_proc = @ctor_proc
 
     private
 

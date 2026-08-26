@@ -97,7 +97,7 @@ module Plod
           if name == :elsif_list
             (value || []).map { |cond, body| [Plod::IR.from_h(cond), deserialize_stmts(body)] }
           elsif name == :values
-            value.to_h { |k, v| [k.to_sym, v] }
+            value.transform_keys(&:to_sym)
           elsif name == :objects
             value.to_h { |k, v| [k.to_sym, Plod::Types.from_h(v)] }
           elsif name == :functions
@@ -119,7 +119,7 @@ module Plod
           elsif value.is_a?(Array)
             value.map { |v| v.is_a?(Hash) && v.key?(:kind) ? Plod::IR.from_h(v) : v }
           elsif value.is_a?(Hash)
-            value.to_h { |k, v| [k.to_sym, v] }
+            value.transform_keys(&:to_sym)
           else
             value
           end
@@ -139,7 +139,7 @@ module Plod
         if name == :elsif_list
           v.map { |cond, body| [cond.to_h, serialize_stmts(body)] }
         elsif name == :values
-          v.to_h { |k, val| [k.to_sym, val] }
+          v.transform_keys(&:to_sym)
         elsif name == :objects
           v.to_h { |k, t| [k.to_sym, t.to_h] }
         elsif name == :functions
@@ -156,16 +156,13 @@ module Plod
       end
 
       def serialize_value(v)
-        if v.is_a?(Plod::Types::Base)
-          v.to_h
-        elsif v.is_a?(Plod::Loc)
+        if v.is_a?(Plod::Types::Base) || v.is_a?(Plod::Loc) ||
+           (v.is_a?(Struct) && v.respond_to?(:kind))
           v.to_h
         elsif v.is_a?(Array)
           v.map { |e| serialize_value(e) }
         elsif v.is_a?(Hash)
           v.transform_values { |e| serialize_value(e) }
-        elsif v.is_a?(Struct) && v.respond_to?(:kind)
-          v.to_h
         else
           v
         end
@@ -186,7 +183,7 @@ module Plod
 
     module SignatureArgsInstanceSide
       def serialize_member(name, v)
-        return v.map { |n, t| [n, t.nil? ? nil : t.to_h] } if name == :args
+        return v.map { |n, t| [n, t&.to_h] } if name == :args
 
         super
       end

@@ -93,7 +93,10 @@ module Plod
       attr_reader :size
 
       def initialize(size)
-        raise ArgumentError, "bit vector size must be positive, got #{size}" unless size.is_a?(Integer) && size.positive?
+        unless size.is_a?(Integer) && size.positive?
+          raise ArgumentError,
+                "bit vector size must be positive, got #{size}"
+        end
 
         @size = size
       end
@@ -113,7 +116,10 @@ module Plod
       attr_reader :size
 
       def initialize(size)
-        raise ArgumentError, "register field size must be positive, got #{size}" unless size.is_a?(Integer) && size.positive?
+        unless size.is_a?(Integer) && size.positive?
+          raise ArgumentError,
+                "register field size must be positive, got #{size}"
+        end
 
         @size = size
       end
@@ -136,7 +142,7 @@ module Plod
 
       def initialize(elem, size)
         raise ArgumentError, "array size must be positive, got #{size}" unless size.is_a?(Integer) && size.positive?
-        raise ArgumentError, "array element type required" unless elem.is_a?(Base)
+        raise ArgumentError, 'array element type required' unless elem.is_a?(Base)
 
         @elem = elem
         @size = size

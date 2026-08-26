@@ -84,7 +84,7 @@ module Plod
       self
     end
 
-    def each(&block) = @diagnostics.each(&block)
+    def each(&) = @diagnostics.each(&)
 
     def empty? = @diagnostics.empty?
 

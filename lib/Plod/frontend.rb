@@ -9,14 +9,14 @@ require_relative 'decl'
 
 module Plod
   class Frontend
-    attr_reader :program, :diag
+    attr_reader :program, :diag, :file_env
 
     def initialize
       @program = IR::Program.new(path: nil, devices: [], components: [], objects: {}, functions: {})
       @diag = DiagnosticBag.new
       @components = {}
       @file_env = Env.new
-      @device_ctors = {}
+      @device_ctors = {}.compare_by_identity
     end
 
     def self.load_file(path)
@@ -93,53 +93,49 @@ module Plod
     end
 
     def register_function(decl)
-      if @file_env.defined_here?(decl.name)
-        raise Plod::Error.new("duplicate abstract method '#{decl.name}'", decl.loc)
-      end
+      raise Plod::Error.new("duplicate abstract method '#{decl.name}'", decl.loc) if @file_env.defined_here?(decl.name)
 
       @program.functions[decl.name] = decl
       @file_env.define(decl.name, Binding.new(:fn, decl))
       nil
     end
 
-    def file_env = @file_env
-
     def device_ctor_proc(device_decl)
-      @device_ctors[device_decl.object_id]
+      @device_ctors[device_decl]
     end
 
     def register_ctor_proc(device_decl, proc)
-      @device_ctors[device_decl.object_id] = proc
+      @device_ctors[device_decl] = proc
     end
 
     def method_proc(method_decl)
-      @method_procs ||= {}
-      @method_procs[method_decl.object_id]
+      @method_procs ||= {}.compare_by_identity
+      @method_procs[method_decl]
     end
 
     def register_method_proc(method_decl, proc)
-      @method_procs ||= {}
-      @method_procs[method_decl.object_id] = proc
+      @method_procs ||= {}.compare_by_identity
+      @method_procs[method_decl] = proc
     end
 
     def lambda_proc(lambda_decl)
-      @lambda_procs ||= {}
-      @lambda_procs[lambda_decl.object_id]
+      @lambda_procs ||= {}.compare_by_identity
+      @lambda_procs[lambda_decl]
     end
 
     def register_lambda_proc(lambda_decl, proc)
-      @lambda_procs ||= {}
-      @lambda_procs[lambda_decl.object_id] = proc
+      @lambda_procs ||= {}.compare_by_identity
+      @lambda_procs[lambda_decl] = proc
     end
 
     def enable_if_proc(register_decl)
-      @enable_if_procs ||= {}
-      @enable_if_procs[register_decl.object_id]
+      @enable_if_procs ||= {}.compare_by_identity
+      @enable_if_procs[register_decl]
     end
 
     def register_enable_if_proc(register_decl, proc)
-      @enable_if_procs ||= {}
-      @enable_if_procs[register_decl.object_id] = proc
+      @enable_if_procs ||= {}.compare_by_identity
+      @enable_if_procs[register_decl] = proc
     end
 
     private
@@ -160,6 +156,8 @@ module Plod
     def eval_component(component)
       env = Env.new(@file_env)
       component.fields.each { |f| env.define(f.name, Binding.new(:var, nil, type: f.type)) }
+      # rubocop:disable Style/CombinableLoops -- two passes by design: every method must be
+      # defined in env before any body evaluates, since bodies may reference later methods
       component.methods.each { |m| env.define(m.name, Binding.new(:fn, m)) }
 
       component.methods.each do |m|
@@ -171,6 +169,7 @@ module Plod
         safely("method #{component.name}.#{m.name}") { ctx.instance_eval(&method_proc(m)) }
         m.body = ctx.final_stmts
       end
+      # rubocop:enable Style/CombinableLoops
     end
 
     def eval_device(device)
@@ -311,16 +310,16 @@ module Plod
 
       def register_device_procs(ctx)
         ctx.register_ctxs.each do |reg_ctx|
-          reg_ctx.decl.methods.each { |m| @frontend.register_method_proc(m, reg_ctx.method_procs[m.object_id]) }
+          reg_ctx.decl.methods.each { |m| @frontend.register_method_proc(m, reg_ctx.method_procs[m]) }
           @frontend.register_enable_if_proc(reg_ctx.decl, reg_ctx.enable_if_proc)
         end
-        ctx.decl.methods.each { |m| @frontend.register_method_proc(m, ctx.method_procs[m.object_id]) }
-        ctx.decl.lambdas.each { |l| @frontend.register_lambda_proc(l, ctx.lambda_procs[l.object_id]) }
+        ctx.decl.methods.each { |m| @frontend.register_method_proc(m, ctx.method_procs[m]) }
+        ctx.decl.lambdas.each { |l| @frontend.register_lambda_proc(l, ctx.lambda_procs[l]) }
         @frontend.register_ctor_proc(ctx.decl, ctx.ctor_proc)
       end
 
       def register_component_procs(ctx)
-        ctx.decl.methods.each { |m| @frontend.register_method_proc(m, ctx.method_procs[m.object_id]) }
+        ctx.decl.methods.each { |m| @frontend.register_method_proc(m, ctx.method_procs[m]) }
       end
     end
   end
