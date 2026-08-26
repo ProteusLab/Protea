@@ -1,24 +1,21 @@
-require_relative '../SDL/plod'
-
-module System
+# frozen_string_literal: true
 
 AbstractStruct(:BaseCPU) {
   Method(:postInterrupt, tid: Int(), int_num: Int(), index: Int())
   Method(:clearInterrupt, tid: Int(), int_num: Int(), index: Int())
 }
 
-
 AbstractStruct(:ThreadContext) {
-  Method(:getCpuPtr, ret: Ptr(System.BaseCPU()))
+  Method(:getCpuPtr, ret: Ptr(BaseCPU()))
   Method(:threadId, ret: Int())
 }
 
 AbstractStruct(:Threads) {
-  Method(:at, id: Int(), ret: Ptr(System.ThreadContext()))
+  Method(:at, id: Int(), ret: Ptr(ThreadContext()))
 }
 
 AbstractStruct(:System) {
-  Field(:threads, System.Threads())
+  Field(:threads, Threads())
 }
 
 AbstractStruct(:ClintParams) {
@@ -29,10 +26,13 @@ AbstractStruct(:ClintParams) {
   Field(:port_int_pin_connection_count, B32())
   Field(:port_reset_connection_count, B32())
   Field(:name, String())
-  Field(:system, Ptr(System.System()))
+  Field(:system, Ptr(System()))
 }
 
-AbstractStruct(:SignalSinkPortBool) {}
+AbstractStruct(:SignalSinkPortBool) {
+  Method(:onChange, handler: Auto())
+}
+
 AbstractStruct(:IntSinkPinClint) {}
 
 AbstractMethod(:doReset)
@@ -49,11 +49,11 @@ Device(:Clint) {
     }
   })
 
-  Constructor(params: Ref(System.ClintParams())) {
+  Constructor(params: Ref(ClintParams())) {
     Init(:system, params.system)
     Init(:nThread, params.num_threads)
-    Init(:signal, params.name + ".signal", 0, System.Self(), int_rtc)
-    Init(:reset, params.name + ".reset")
+    Init(:signal, params.name + '.signal', 0, this, int_rtc)
+    Init(:reset, params.name + '.reset')
     Init(:resetMtimecmp, params.reset_mtimecmp)
     Init(:resetValue, params.mtimecmp_reset_value)
 
@@ -62,46 +62,42 @@ Device(:Clint) {
     }
   }
 
-  Field(:system, Ptr(System.System()))
+  Field(:system, Ptr(System()))
   Field(:nThread, B32())
-  Field(:signal, System.IntSinkPinClint())
-  Field(:reset, System.SignalSinkPortBool())
+  Field(:signal, IntSinkPinClint())
+  Field(:reset, SignalSinkPortBool())
   Field(:resetMtimecmp, Bool())
   Field(:resetValue, B64())
 
   Method(:raiseInterruptPin, id: Int()) {
     If(id == int_rtc) {
-      mtime[]= mtime + 1
+      mtime[] = mtime + 1
     }
 
-    Var :cid, Int()
-    For(iter: :cid, init: 0x0, end: nThread) {
-      Let :tc, Ptr(System.ThreadContext()), system.threads.at(cid)
-
+    For(iter: :cid, init: 0x0, to: nThread) {
+      Let :tc, Ptr(ThreadContext()), system.threads.at(cid)
       Let :mtimecmpv, B64(), mtimecmp.at(cid)
 
       If(mtime >= mtimecmpv) {
         tc.getCpuPtr().postInterrupt(tc.threadId(), int_timer_machine, 0)
       }
-      Else {
+      .Else {
         tc.getCpuPtr().clearInterrupt(tc.threadId(), int_timer_machine, 0)
       }
     }
   }
 
   Method(:reg_init) {
-    mtime[]= 0
-    Var :cid, Int()
-    For(iter: :cid, init: 0x0, end: 0x1000) {
+    mtime[] = 0
+    For(iter: :cid, init: 0x0, to: 0x1000) {
       msip.set(cid, 0)
       mtimecmp.set(cid, resetValue)
     }
   }
 
   Method(:doReset) {
-    mtime[]= 0
-    Var :cid, Int()
-    For(iter: :cid, init: 0x0, end: 0x1000) {
+    mtime[] = 0
+    For(iter: :cid, init: 0x0, to: 0x1000) {
       If(resetMtimecmp) {
         mtimecmp.set(cid, resetValue)
       }
@@ -125,12 +121,12 @@ Device(:Clint) {
     }
 
     Method(:update, cid: Int()) {
-      Let :tc, Ptr(System.ThreadContext()), system.threads.at(cid)
+      Let :tc, Ptr(ThreadContext()), system.threads.at(cid)
 
       If(msip.at(cid)) {
         tc.getCpuPtr().postInterrupt(tc.threadId(), int_software_machine, 0)
       }
-      Else {
+      .Else {
         tc.getCpuPtr().clearInterrupt(tc.threadId(), int_software_machine, 0)
       }
     }
@@ -150,5 +146,3 @@ Device(:Clint) {
 
   Register(:mtime, size: 0x8, offset: 0xbff8) {}
 }
-
-end
