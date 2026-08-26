@@ -19,9 +19,26 @@ So every ruby tool or script can be run using `bundle exec`, for example:
 bundle exec ruby tools/some_tool.rb
 ```
 
+Device toolchain (Plod)
+-----------------------
 
+Device descriptions in `lib/Devices/*.rb` are processed by the `plod` CLI:
+
+```bash
+bundle exec exe/plod check lib/Devices/uart8250.rb   # parse + type-check
+bundle exec exe/plod ir lib/Devices/clint.rb         # dump IR as YAML/JSON
+bundle exec exe/plod build lib/Devices/uart8250.rb \ # generate a gem5-style C++ header
+     -d Uart8250 -o Uart8250.hh
+bundle exec exe/plod targets                         # list backend targets
+```
+
+See [docs/plod.md](docs/plod.md) for the language reference.
 
 Tests
 -----
 
+```bash
+bundle exec rake test            # core, frontend, sema, backend, API contract, header compilation
+bundle exec rake golden:update   # refresh golden C++ headers after intentional changes
+```
 
