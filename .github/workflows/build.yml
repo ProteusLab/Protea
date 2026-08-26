@@ -44,8 +44,35 @@ jobs:
       - name: Run tests
         run: bundle exec rake test
 
+  plod-check:
+    needs: formatting-check
+    name: Plod check devices
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4.8'
+          bundler-cache: true
+
+      - name: Check device descriptions
+        run: bundle exec exe/plod check lib/Devices/*.rb
+
+      - name: Verify generated headers compile
+        run: |
+          mkdir -p /tmp/plod-headers
+          for dev in Clint ns16550 Uart8250; do
+            bundle exec exe/plod build lib/Devices/$(echo $dev | tr 'A-Z' 'a-z').rb -d $dev -o /tmp/plod-headers/$dev.hh
+          done
+          for dev in Clint ns16550 Uart8250; do
+            g++ -std=c++23 -fsyntax-only -I tests/support/gem5_stub /tmp/plod-headers/$dev.hh
+          done
+
   build:
-    needs: [formatting-check, test]
+    needs: [formatting-check, test, plod-check]
     name: Build
     runs-on: ubuntu-22.04
     strategy:
