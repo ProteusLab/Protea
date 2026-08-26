@@ -1,0 +1,37 @@
+name: gem5_clint
+devices: [Clint]
+base: BasicPioDevice
+ctor_base_args: "params, params.pio_size"
+includes:
+  - arch/riscv/system.hh
+  - cpu/base.hh
+  - mem/packet.hh
+  - mem/packet_access.hh
+  - sim/system.hh
+  - arch/riscv/interrupts.hh
+  - dev/intpin.hh
+  - dev/io_device.hh
+  - dev/mc146818.hh
+  - dev/reg_bank.hh
+forward_decls:
+  - "class Terminal;"
+  - "class Platform;"
+port_body: |
+  if (if_name == "int_pin")
+      return signal;
+  else if (if_name == "reset")
+      return reset;
+  else
+      return BasicPioDevice::getPort(if_name, idx);
+init_body: |
+  reg_init();
+  BasicPioDevice::init();
+
+  RiscvSystem *rv_sys = dynamic_cast<RiscvSystem *>(system);
+  if (rv_sys != nullptr) {
+      rv_sys->setClint(this);
+  } else {
+      warn("Set Clint to RiscvSystem failed.");
+  }
+env:
+  ns: sim_clock::as_int::ns
