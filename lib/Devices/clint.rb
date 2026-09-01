@@ -1,24 +1,24 @@
 # frozen_string_literal: true
 
-AbstractStruct(:BaseCPU) do
+AbstractStruct(:BaseCPU) {
   Method(:postInterrupt, tid: Int(), int_num: Int(), index: Int())
   Method(:clearInterrupt, tid: Int(), int_num: Int(), index: Int())
-end
+}
 
-AbstractStruct(:ThreadContext) do
+AbstractStruct(:ThreadContext) {
   Method(:getCpuPtr, ret: Ptr(BaseCPU()))
   Method(:threadId, ret: Int())
-end
+}
 
-AbstractStruct(:Threads) do
+AbstractStruct(:Threads) {
   Method(:at, id: Int(), ret: Ptr(ThreadContext()))
-end
+}
 
-AbstractStruct(:System) do
+AbstractStruct(:System) {
   Field(:threads, Threads())
-end
+}
 
-AbstractStruct(:ClintParams) do
+AbstractStruct(:ClintParams) {
   Field(:mtimecmp_reset_value, B64())
   Field(:num_threads, B32())
   Field(:pio_size, B64())
@@ -27,29 +27,29 @@ AbstractStruct(:ClintParams) do
   Field(:port_reset_connection_count, B32())
   Field(:name, String())
   Field(:system, Ptr(System()))
-end
+}
 
-AbstractStruct(:SignalSinkPortBool) do
+AbstractStruct(:SignalSinkPortBool) {
   Method(:onChange, handler: Auto())
-end
+}
 
 AbstractStruct(:IntSinkPinClint) {}
 
 AbstractMethod(:doReset)
 
-Device(:Clint) do
+Device(:Clint) {
   Const(:int_rtc, Int(), 0)
   Const(:int_reset, Int(), 1)
   Const(:int_timer_machine, Int(), 7)
   Const(:int_software_machine, Int(), 3)
 
-  Field(:resetLambda, Auto(), Lambda(newVal: Bool()) do
-    If(newVal) do
+  Field(:resetLambda, Auto(), Lambda(newVal: Bool()) {
+    If(newVal) {
       doReset
-    end
-  end)
+    }
+  })
 
-  Constructor(params: Ref(ClintParams())) do
+  Constructor(params: Ref(ClintParams())) {
     Init(:system, params.system)
     Init(:nThread, params.num_threads)
     Init(:signal, params.name + '.signal', 0, this, int_rtc)
@@ -57,10 +57,10 @@ Device(:Clint) do
     Init(:resetMtimecmp, params.reset_mtimecmp)
     Init(:resetValue, params.mtimecmp_reset_value)
 
-    Body do
+    Body {
       reset.onChange(resetLambda)
-    end
-  end
+    }
+  }
 
   Field(:system, Ptr(System()))
   Field(:nThread, B32())
@@ -69,80 +69,80 @@ Device(:Clint) do
   Field(:resetMtimecmp, Bool())
   Field(:resetValue, B64())
 
-  Method(:raiseInterruptPin, id: Int()) do
-    If(id == int_rtc) do
+  Method(:raiseInterruptPin, id: Int()) {
+    If(id == int_rtc) {
       mtime[] = mtime + 1
-    end
+    }
 
-    For(iter: :cid, init: 0x0, to: nThread) do
+    For(iter: :cid, init: 0x0, to: nThread) {
       Let :tc, Ptr(ThreadContext()), system.threads.at(cid)
       Let :mtimecmpv, B64(), mtimecmp.at(cid)
 
-      If(mtime >= mtimecmpv) do
+      If(mtime >= mtimecmpv) {
         tc.getCpuPtr.postInterrupt(tc.threadId, int_timer_machine, 0)
-      end
-      Else do
+      }
+      Else {
         tc.getCpuPtr.clearInterrupt(tc.threadId, int_timer_machine, 0)
-      end
-    end
-  end
+      }
+    }
+  }
 
-  Method(:reg_init) do
+  Method(:reg_init) {
     mtime[] = 0
-    For(iter: :cid, init: 0x0, to: 0x1000) do
+    For(iter: :cid, init: 0x0, to: 0x1000) {
       msip.set(cid, 0)
       mtimecmp.set(cid, resetValue)
-    end
-  end
+    }
+  }
 
-  Method(:doReset) do
+  Method(:doReset) {
     mtime[] = 0
-    For(iter: :cid, init: 0x0, to: 0x1000) do
-      If(resetMtimecmp) do
+    For(iter: :cid, init: 0x0, to: 0x1000) {
+      If(resetMtimecmp) {
         mtimecmp.set(cid, resetValue)
-      end
+      }
       msip.set(cid, 0)
       msip.update(cid)
-    end
+    }
 
     raiseInterruptPin(int_reset)
-  end
+  }
 
-  Register(:msip, size: 0x4, offset: 0x0, seqn: 0x1000) do
+  Register(:msip, size: 0x4, offset: 0x0, seqn: 0x1000) {
     Field :msipb, 0x0
 
-    Method(:write, data: B32(), cid: Int()) do
+    Method(:write, data: B32(), cid: Int()) {
       msip.set(cid, data & 0x1)
       update(cid)
-    end
+    }
 
-    Method(:read, cid: Int(), ret: B32()) do
+    Method(:read, cid: Int(), ret: B32()) {
       Return msip.at(cid)
-    end
+    }
 
-    Method(:update, cid: Int()) do
+    Method(:update, cid: Int()) {
       Let :tc, Ptr(ThreadContext()), system.threads.at(cid)
 
-      If(msip.at(cid)) do
+      If(msip.at(cid)) {
         tc.getCpuPtr.postInterrupt(tc.threadId, int_software_machine, 0)
-      end
-      Else do
+      }
+      Else {
         tc.getCpuPtr.clearInterrupt(tc.threadId, int_software_machine, 0)
-      end
-    end
-  end
+      }
+    }
+  }
 
-  Register(:mtimecmp, size: 0x8, offset: 0x4000, seqn: 0x1000) do
+  Register(:mtimecmp, size: 0x8, offset: 0x4000, seqn: 0x1000) {
     Field :msipb, 0x0
 
-    Method(:write, data: B64(), cid: Int()) do
+    Method(:write, data: B64(), cid: Int()) {
       mtimecmp.set(cid, data)
-    end
+    }
 
-    Method(:read, cid: Int(), ret: B64()) do
+    Method(:read, cid: Int(), ret: B64()) {
       Return mtimecmp.at(cid)
-    end
-  end
+    }
+  }
 
   Register(:mtime, size: 0x8, offset: 0xbff8) {}
-end
+}

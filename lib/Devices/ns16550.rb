@@ -1,145 +1,145 @@
 # frozen_string_literal: true
 
-Struct(:fifo8) do
-  Method(:init) do
+Struct(:fifo8) {
+  Method(:init) {
     front[] = 0
     size[] = 0
-  end
+  }
 
-  Method(:push, value: B8()) do
+  Method(:push, value: B8()) {
     buf.set((front + size) % buf.type.size, value)
     size[] = size + 1
-  end
+  }
 
-  Method(:pop, ret: B8()) do
+  Method(:pop, ret: B8()) {
     Var :valToRet, B8()
 
     valToRet[] = buf.get(front)
     front[] = (front + 1) % buf.type.size
     size[] = size - 1
     Return valToRet
-  end
+  }
 
-  Method(:is_empty, ret: B1()) do
+  Method(:is_empty, ret: B1()) {
     Let :empty, B1(), size == 0
     Return empty
-  end
+  }
 
   Field(:buf, Array(B8(), 8))
   Field(:front, Int())
   Field(:size, Int())
-end
+}
 
-Device(:ns16550) do
-  Register(:rbr) do
+Device(:ns16550) {
+  Register(:rbr) {
     size 0x1
     offset 0x0
     type :ro
     enableIf { lcr.dlab == 0 }
 
-    Method(:read, ret: B8()) do
+    Method(:read, ret: B8()) {
       Let :ret_val, B8(), 0
 
-      If(fcr.fe) do
-        If(mFifo.is_empty) do
+      If(fcr.fe) {
+        If(mFifo.is_empty) {
           ret_val[] = 0
-        end
-        Else do
+        }
+        Else {
           ret_val[] = mFifo.pop
-        end
+        }
 
-        If(mFifo.is_empty) do
+        If(mFifo.is_empty) {
           lsr.dr[] = 0
           lsr.bi[] = 0
-        end
-        Else do
+        }
+        Else {
           ret_val[] = mFifo.pop
-        end
-      end
-      Else do
+        }
+      }
+      Else {
         ret_val[] = rbr
         lsr.dr[] = 0
         lsr.bi[] = 0
-      end
+      }
 
       Return ret_val
-    end
-  end
+    }
+  }
 
-  Register(:thr) do
+  Register(:thr) {
     size 0x1
     offset 0x0
     type :wo
     enableIf { lcr.dlab == 0 }
-  end
+  }
 
-  Register(:ier) do
+  Register(:ier) {
     size 0x1
     offset 0x1
     enableIf { lcr.dlab == 0 }
-  end
+  }
 
-  Register(:iir) do
+  Register(:iir) {
     size 0x1
     offset 0x2
     type :ro
     Field :iid, 0x1, 0x3
 
-    Method(:read, ret: B8()) do
-      If(iid == 0x2) do
-      end
+    Method(:read, ret: B8()) {
+      If(iid == 0x2) {
+      }
 
       Return this
-    end
-  end
+    }
+  }
 
-  Register(:fcr) do
+  Register(:fcr) {
     size 0x1
     offset 0x2
     type :wo
     Field :fe, 0x0
-  end
+  }
 
-  Register(:lcr) do
+  Register(:lcr) {
     size 0x1
     offset 0x3
     Field :dlab, 0x7
-  end
+  }
 
-  Register(:mcr) do
+  Register(:mcr) {
     size 0x1
     offset 0x4
-  end
+  }
 
-  Register(:lsr) do
+  Register(:lsr) {
     size 0x1
     offset 0x5
     Field :dr, 0x0
     Field :bi, 0x4
-  end
+  }
 
-  Register(:msr) do
+  Register(:msr) {
     size 0x1
     offset 0x6
-  end
+  }
 
-  Register(:scr) do
+  Register(:scr) {
     size 0x1
     offset 0x7
-  end
+  }
 
-  Register(:dll) do
+  Register(:dll) {
     size 0x1
     offset 0x0
     enableIf { lcr.dlab == 1 }
-  end
+  }
 
-  Register(:dlm) do
+  Register(:dlm) {
     size 0x1
     offset 0x1
     enableIf { lcr.dlab == 1 }
-  end
+  }
 
   Field(:mFifo, fifo8)
   Field(:mThrIpending, Int())
-end
+}
