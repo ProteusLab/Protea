@@ -2,19 +2,20 @@
 
 **Plod** (Protea Language fOr Devices) is a small language for describing peripheral devices. It combines a declarative register-bank description with an imperative body language, and compiles to C++ headers for the gem5 simulator.
 
-Plod is a Ruby-hosted DSL: device descriptions are ordinary Ruby files evaluated by the `plod` toolchain. No Ruby knowledge beyond the keywords below is required to write a device.
+Devices are written in the C-like `.pld` language and translated by `plod translate` into a Ruby-hosted DSL (`device.rb`), which is what the rest of the toolchain consumes. Hand-editing the `.rb` files is possible but discouraged for translated devices — edit the `.pld` and re-translate.
 
 ## Toolchain
 
 ```
-device.rb ──plod check──▶ diagnostics (file:line)
-          ──plod ir─────▶ program IR (YAML/JSON)
-          ──plod build──▶ C++ header (target-dependent)
+device.pld ──plod translate──▶ device.rb ──plod check──▶ diagnostics (file:line)
+                                       ──plod ir─────▶ program IR (YAML/JSON)
+                                       ──plod build──▶ C++ header (target-dependent)
 ```
 
 All commands take one or more device files:
 
 ```bash
+bundle exec exe/plod translate lib/Devices/uart8250.pld   # .pld -> sibling .rb (-o - for stdout)
 bundle exec exe/plod check lib/Devices/uart8250.rb
 bundle exec exe/plod ir lib/Devices/clint.rb -o clint_ir.yaml
 bundle exec exe/plod build lib/Devices/uart8250.rb -d Uart8250 -o Uart8250.hh
@@ -46,7 +47,7 @@ Inside a device:
 
 Inside a register:
 
-- `field :name, lsb` or `field :name, lo..hi` — bit fields (also accepted: `[lo, hi]`).
+- `Field :name, lsb` or `Field :name, [lo, hi]` — bit fields (a `lo..hi` range also works).
 - `enableIf { lcr.dlab == 0 }` — dispatch predicate.
 - `Method(:read, ret: B8()) { ... }` / `Method(:write, data: B8()) { ... }` — access semantics. If omitted, a default is generated. The checker enforces: no `write` on `:ro`, no `read` on `:wo`, `read` returns the register width, `write` takes `data` of the register width.
 
@@ -56,11 +57,54 @@ Inside a register:
 
 ### Bodies
 
-Statements: `Let :x, T, expr`, `Var :x, T`, `x[] = v` (assignment), `If(c) { }.Elseif(c) { }.Else { }`, `For(iter: :i, init: 0, to: n) { }`, `Return [expr]`, `Cast(T, v)`, `GetPtr(v)`.
+Statements: `Let :x, T, expr`, `Var :x, T`, `x[] = v` (assignment), `If(c) { }` with sibling `Elseif(c) { }` / `Else { }` blocks, `For(iter: :i, init: 0, to: n) { }`, `Return [expr]`, `Cast(T, v)`, `GetPtr(v)`.
 
 Expressions: arithmetic and bitwise operators, comparisons, `reg.field` bit access, `recv.method(args)`, `container.at(i)`, `container.set(i, v)`, `enum.KEY`, and calls to device methods and abstract functions.
 
 `this` inside a register method denotes the whole register; bit fields are assignable (`dlab[] = 1`).
+
+## The .pld language
+
+`.pld` is a C-flavoured surface syntax for the same language. `lib/Devices/uart8250.pld` is the reference example. The translator is forgiving about style: `//` and `#` comments, statements terminated by `;` or a newline, `x*`/`&x` pointer notation.
+
+```c
+abstract struct SerialDevice {
+    bool dataAvailable();
+    b8 readData();
+}
+
+device Uart8250 {
+    enum InterruptIds { Rx: 2, Tx: 1 }
+    const b8 rx_int = 1;
+
+    abstract schedule(Event* event, Tick when);
+    abstract int status;
+
+    void dataAvailable() {
+        if (ier.rda()) {
+            platform.postConsoleInt();
+            status |= rx_int;
+        }
+    }
+
+    register ier: size(0x1), offset(0x1) {
+        enableIf { lcr.dlab == 0 }
+        field rda(0x0)
+        field zero(0x4, 0x7)
+
+        void write(b8 data) {
+            self = data;
+        }
+    }
+}
+```
+
+Translation rules worth knowing:
+
+- `self` becomes `this`; compound assignments desugar (`status |= x` → `status[] = status | x`).
+- `&x` becomes `GetPtr(x)`; `static_cast<T>(e)` becomes `Cast(T(), e)`; `[]{ ... }` becomes a `Lambda`.
+- Enum references lower the enum name's first letter: `InterruptIds.Rx` → `interruptIds.Rx`.
+- Hex spellings are preserved (`0x1` stays `0x1`), and blank lines from the source are kept.
 
 ## Checking
 

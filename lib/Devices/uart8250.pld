@@ -6,16 +6,20 @@ abstract struct Tick {}
 
 abstract struct Platform {
     void clearConsoleInt();
+    void postConsoleInt();
 }
 
 abstract struct SerialDevice {
     bool dataAvailable();
 
     b8 readData();
+    void writeData(b8 data);
 }
 
 abstract struct EventFunctionWrapper {
     bool scheduled();
+
+    void process();
 }
 
 abstract Tick ns;

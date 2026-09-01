@@ -22,15 +22,20 @@ bundle exec ruby tools/some_tool.rb
 Device toolchain (Plod)
 -----------------------
 
-Device descriptions in `lib/Devices/*.rb` are processed by the `plod` CLI:
+Devices are described in the C-like `.pld` language and translated into
+the Ruby DSL consumed by the `plod` CLI:
 
 ```bash
-bundle exec exe/plod check lib/Devices/uart8250.rb   # parse + type-check
-bundle exec exe/plod ir lib/Devices/clint.rb         # dump IR as YAML/JSON
-bundle exec exe/plod build lib/Devices/uart8250.rb \ # generate a gem5-style C++ header
+bundle exec exe/plod translate lib/Devices/uart8250.pld # .pld -> .rb (sibling file)
+bundle exec exe/plod check lib/Devices/uart8250.rb      # parse + type-check
+bundle exec exe/plod ir lib/Devices/clint.rb            # dump IR as YAML/JSON
+bundle exec exe/plod build lib/Devices/uart8250.rb \    # generate a gem5-style C++ header
      -d Uart8250 -o Uart8250.hh
-bundle exec exe/plod targets                         # list backend targets
+bundle exec exe/plod targets                            # list backend targets
 ```
+
+`lib/Devices/uart8250.rb` is generated from `uart8250.pld`; edit the `.pld`
+source and re-run `translate` to change it.
 
 See [docs/plod.md](docs/plod.md) for the language reference.
 

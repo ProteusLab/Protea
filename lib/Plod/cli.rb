@@ -23,6 +23,7 @@ module Plod
       when 'check' then cmd_check
       when 'ir' then cmd_ir
       when 'build' then cmd_build
+      when 'translate' then cmd_translate
       when 'targets' then cmd_targets
       when 'version', '--version', '-v' then puts Plod::VERSION
       when 'help', '--help', '-h', nil then print_help
@@ -57,10 +58,15 @@ module Plod
 
         commands:
           check <file.rb>...      parse and type-check device descriptions
+          translate <file.pld>... translate .pld descriptions into Ruby DSL
           ir <file.rb>...         print the device IR (YAML by default)
           build <file.rb>...      generate C++ headers from device descriptions
           targets                 list available target descriptors
           version                 print version
+
+        options for translate:
+          -o, --output FILE      write to FILE instead of the sibling .rb ('-' for stdout);
+                                  only with a single input file
 
         options for ir:
           -o, --output FILE       write IR to FILE instead of stdout
@@ -108,6 +114,32 @@ module Plod
         status = 1 if report(fe.diag) == 1
       end
       status
+    end
+
+    def cmd_translate
+      parse_opts(@argv) { |opts| parse_common(opts) }
+      paths = @positional
+      raise Plod::Error, 'translate: no input files (try: plod translate lib/Devices/uart8250.pld)' if paths.empty?
+      raise Plod::Error, 'translate: -o requires exactly one input file' if @output && paths.size > 1
+
+      paths.each do |path|
+        raise Plod::Error, "no such file: #{path}" unless File.exist?(path)
+        raise Plod::Error, "translate: expected a .pld file, got '#{path}'" unless path.end_with?('.pld')
+
+        source = Plod::Pld::Translator.translate_file(path)
+        target = if @output
+                   @output == '-' ? nil : @output
+                 else
+                   path.sub(/\.pld\z/, '.rb')
+                 end
+        if target
+          File.write(target, source)
+          puts "translated #{path} -> #{target}" unless @output == '-'
+        else
+          print source
+        end
+      end
+      0
     end
 
     def cmd_ir
