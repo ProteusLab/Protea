@@ -81,7 +81,7 @@ Device(:Clint) do
       If(mtime >= mtimecmpv) do
         tc.getCpuPtr.postInterrupt(tc.threadId, int_timer_machine, 0)
       end
-      .Else do
+      Else do
         tc.getCpuPtr.clearInterrupt(tc.threadId, int_timer_machine, 0)
       end
     end
@@ -109,7 +109,7 @@ Device(:Clint) do
   end
 
   Register(:msip, size: 0x4, offset: 0x0, seqn: 0x1000) do
-    field :msipb, 0x0
+    Field :msipb, 0x0
 
     Method(:write, data: B32(), cid: Int()) do
       msip.set(cid, data & 0x1)
@@ -126,14 +126,14 @@ Device(:Clint) do
       If(msip.at(cid)) do
         tc.getCpuPtr.postInterrupt(tc.threadId, int_software_machine, 0)
       end
-      .Else do
+      Else do
         tc.getCpuPtr.clearInterrupt(tc.threadId, int_software_machine, 0)
       end
     end
   end
 
   Register(:mtimecmp, size: 0x8, offset: 0x4000, seqn: 0x1000) do
-    field :msipb, 0x0
+    Field :msipb, 0x0
 
     Method(:write, data: B64(), cid: Int()) do
       mtimecmp.set(cid, data)

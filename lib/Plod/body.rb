@@ -149,27 +149,6 @@ module Plod
     end
   end
 
-  class IfHandle
-    def initialize(ctx, node)
-      @ctx = ctx
-      @node = node
-    end
-
-    def Elseif(cond, &block)
-      cond_expr = @ctx.value_expr(cond)
-      @ctx.consume(cond_expr)
-      body = @ctx.sub_body(block)
-      @node.elsif_list << [cond_expr.node, body.final_stmts]
-      self
-    end
-
-    def Else(&block)
-      body = @ctx.sub_body(block)
-      @node.else_body = body.final_stmts
-      self
-    end
-  end
-
   class BodyContext < Slate
     include Types::Sugar
     include Types::BitSugar
@@ -179,12 +158,14 @@ module Plod
       @env = env
       @stmts = []
       @provisional = {}.compare_by_identity
+      @open_if = nil
     end
 
     def loc = Loc.capture
 
     def emit(node)
       @stmts << node
+      @open_if = node.kind == :if ? node : nil
       node
     end
 
@@ -377,7 +358,29 @@ module Plod
       consume(c)
       node = IR::If.new(cond: c.node, then_body: sub_body(block).final_stmts, elsif_list: [], else_body: nil, loc: loc)
       emit(node)
-      IfHandle.new(self, node)
+      nil
+    end
+
+    def Elseif(cond, &block)
+      unless @open_if
+        raise Plod::Error.new('Elseif must directly follow an If (or another Elseif) at the same nesting level', loc)
+      end
+
+      c = value_expr(cond)
+      consume(c)
+      @open_if.elsif_list << [c.node, sub_body(block).final_stmts]
+      nil
+    end
+
+    def Else(&block)
+      unless @open_if
+        raise Plod::Error.new('Else must directly follow an If (or Elseif) at the same nesting level', loc)
+      end
+      raise Plod::Error.new('this If already has an Else', loc) unless @open_if.else_body.nil?
+
+      @open_if.else_body = sub_body(block).final_stmts
+      @open_if = nil
+      nil
     end
 
     def For(iter:, init:, to:, &block)

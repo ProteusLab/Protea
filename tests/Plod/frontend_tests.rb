@@ -81,10 +81,10 @@ class FrontendSmokeTests < Plod::TestCase
           If(x == 1) {
             x[] = 2
           }
-          .Elseif(x == 3) {
+          Elseif(x == 3) {
             x[] = 4
           }
-          .Else {
+          Else {
             x[] = 5
           }
         }
@@ -162,8 +162,8 @@ class FrontendSmokeTests < Plod::TestCase
     fe = Plod::Frontend.load_source(<<~RUBY, 'test.rb')
       Device(:D) {
         Register(:r, size: 0x1, offset: 0x0) {
-          field :lo, 0x0
-          field :hi, 0x7
+          Field :lo, 0x0
+          Field :hi, 0x7
 
           Method(:write, data: B8()) {
             this[] = 0

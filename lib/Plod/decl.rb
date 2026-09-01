@@ -106,7 +106,7 @@ module Plod
       @decl.seqn = value
     end
 
-    def field(name, lsb, size = 1)
+    def Field(name, lsb, size = 1)
       if lsb.is_a?(Range)
         size = lsb.last - lsb.first + 1
         lsb = lsb.first
@@ -115,7 +115,7 @@ module Plod
         lsb = lsb[0]
       end
       unless lsb.is_a?(Integer) && size.is_a?(Integer) && lsb >= 0 && size >= 1
-        raise Plod::Error.new("invalid bit field '#{name}': use field(:name, lsb, size) or field(:name, lo..hi)",
+        raise Plod::Error.new("invalid bit field '#{name}': use Field(:name, lsb, size) or Field(:name, lo..hi)",
                               Loc.capture)
       end
 

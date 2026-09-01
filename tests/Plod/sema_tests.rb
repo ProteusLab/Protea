@@ -151,7 +151,7 @@ class SemaNegativeTests < Plod::TestCase
     diag = check(<<~RUBY)
       Device(:D) {
         Register(:r, size: 0x1, offset: 0x0) {
-          field :big, [0x0, 0x8]
+          Field :big, [0x0, 0x8]
         }
       }
     RUBY
@@ -162,8 +162,8 @@ class SemaNegativeTests < Plod::TestCase
     diag = check(<<~RUBY)
       Device(:D) {
         Register(:r, size: 0x2, offset: 0x0) {
-          field :a, [0x0, 0x4]
-          field :b, [0x3, 0x8]
+          Field :a, [0x0, 0x4]
+          Field :b, [0x3, 0x8]
         }
       }
     RUBY
@@ -193,7 +193,7 @@ class SemaNegativeTests < Plod::TestCase
     diag = check(<<~RUBY)
       Device(:D) {
         Register(:lcr, size: 0x1, offset: 0x3) {
-          field :dlab, 0x7
+          Field :dlab, 0x7
         }
         Register(:a, size: 0x1, offset: 0x0) {
           enableIf { lcr.dlab == 0 }
@@ -220,7 +220,7 @@ class SemaNegativeTests < Plod::TestCase
     diag = check(<<~RUBY)
       Device(:D) {
         Register(:r, size: 0x1, offset: 0x0) {
-          field :lo, 0x0
+          Field :lo, 0x0
         }
         Method(:m) {
           r.hi[] = 1

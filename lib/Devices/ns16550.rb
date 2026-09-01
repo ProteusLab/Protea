@@ -44,7 +44,7 @@ Device(:ns16550) do
         If(mFifo.is_empty) do
           ret_val[] = 0
         end
-        .Else do
+        Else do
           ret_val[] = mFifo.pop
         end
 
@@ -52,11 +52,11 @@ Device(:ns16550) do
           lsr.dr[] = 0
           lsr.bi[] = 0
         end
-        .Else do
+        Else do
           ret_val[] = mFifo.pop
         end
       end
-      .Else do
+      Else do
         ret_val[] = rbr
         lsr.dr[] = 0
         lsr.bi[] = 0
@@ -83,7 +83,7 @@ Device(:ns16550) do
     size 0x1
     offset 0x2
     type :ro
-    field :iid, 0x1, 0x3
+    Field :iid, 0x1, 0x3
 
     Method(:read, ret: B8()) do
       If(iid == 0x2) do
@@ -97,13 +97,13 @@ Device(:ns16550) do
     size 0x1
     offset 0x2
     type :wo
-    field :fe, 0x0
+    Field :fe, 0x0
   end
 
   Register(:lcr) do
     size 0x1
     offset 0x3
-    field :dlab, 0x7
+    Field :dlab, 0x7
   end
 
   Register(:mcr) do
@@ -114,8 +114,8 @@ Device(:ns16550) do
   Register(:lsr) do
     size 0x1
     offset 0x5
-    field :dr, 0x0
-    field :bi, 0x4
+    Field :dr, 0x0
+    Field :bi, 0x4
   end
 
   Register(:msr) do

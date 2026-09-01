@@ -66,7 +66,7 @@ Device(:Uart8250) do
     If(event.scheduled == 0) do
       schedule(event, curTick + interval)
     end
-    .Else do
+    Else do
       reschedule(event, curTick + interval)
     end
   end
@@ -97,7 +97,7 @@ Device(:Uart8250) do
       If(device.dataAvailable & ier.rda) do
         scheduleIntr(GetPtr(rxIntrEvent))
       end
-      .Else do
+      Else do
         If(rxIntrEvent.scheduled) do
           deschedule(GetPtr(rxIntrEvent))
         end
@@ -116,7 +116,7 @@ Device(:Uart8250) do
       If(ier.thre) do
         scheduleIntr(GetPtr(txIntrEvent))
       end
-      .Else do
+      Else do
         If(txIntrEvent.scheduled) do
           deschedule(GetPtr(txIntrEvent))
         end
@@ -127,11 +127,11 @@ Device(:Uart8250) do
   Register(:ier, size: 0x1, offset: 0x1) do
     enableIf { lcr.dlab == 0 }
 
-    field :rda, 0x0
-    field :thre, 0x1
-    field :rls, 0x2
-    field :ms, 0x3
-    field :zero, [0x4, 0x7]
+    Field :rda, 0x0
+    Field :thre, 0x1
+    Field :rls, 0x2
+    Field :ms, 0x3
+    Field :zero, [0x4, 0x7]
 
     Method(:write, data: B8()) do
       this[] = data
@@ -140,11 +140,11 @@ Device(:Uart8250) do
         If(curTick - lastTxInt > ns * 225) do
           txIntrEvent.process
         end
-        .Else do
+        Else do
           scheduleIntr(GetPtr(txIntrEvent))
         end
       end
-      .Else do
+      Else do
         If(txIntrEvent.scheduled) do
           deschedule(GetPtr(txIntrEvent))
         end
@@ -154,7 +154,7 @@ Device(:Uart8250) do
       If(ier.rda & device.dataAvailable) do
         scheduleIntr(GetPtr(rxIntrEvent))
       end
-      .Else do
+      Else do
         If(rxIntrEvent.scheduled) do
           deschedule(GetPtr(rxIntrEvent))
         end
@@ -164,9 +164,9 @@ Device(:Uart8250) do
   end
 
   Register(:iir, size: 0x1, offset: 0x2, type: :ro) do
-    field :ip, 0x0
-    field :iid, [0x1, 0x2]
-    field :zero, [0x3, 0x7]
+    Field :ip, 0x0
+    Field :iid, [0x1, 0x2]
+    Field :zero, [0x3, 0x7]
 
     Method(:read, ret: B8()) do
       this[] = 0
@@ -174,7 +174,7 @@ Device(:Uart8250) do
       If(status & rx_int) do
         iid[] = interruptIds.Rx
       end
-      .Else do
+      Else do
         If(status & tx_int) do
           iid[] = interruptIds.Tx
           If(txIntrEvent.scheduled) do
@@ -182,7 +182,7 @@ Device(:Uart8250) do
           end
           clearIntr(tx_int)
         end
-        .Else do
+        Else do
           ip[] = 1
         end
       end
@@ -194,21 +194,21 @@ Device(:Uart8250) do
   Register(:fcr, size: 0x1, offset: 0x2, type: :wo) {}
 
   Register(:lcr, size: 0x1, offset: 0x3) do
-    field :wls, [0x0, 0x1]
-    field :stb, 0x2
-    field :pen, 0x3
-    field :eps, 0x4
-    field :sp, 0x5
-    field :sb, 0x6
-    field :dlab, 0x7
+    Field :wls, [0x0, 0x1]
+    Field :stb, 0x2
+    Field :pen, 0x3
+    Field :eps, 0x4
+    Field :sp, 0x5
+    Field :sb, 0x6
+    Field :dlab, 0x7
   end
 
   Register(:mcr, size: 0x1, offset: 0x4) do
-    field :dtr, 0x0
-    field :rts, 0x1
-    field :out, [0x2, 0x3]
-    field :loop, 0x4
-    field :zero, [0x5, 0x7]
+    Field :dtr, 0x0
+    Field :rts, 0x1
+    Field :out, [0x2, 0x3]
+    Field :loop, 0x4
+    Field :zero, [0x5, 0x7]
 
     Method(:write, data: B8()) do
       If(data == (uart_mcr_loop | 0x0A)) do
@@ -218,14 +218,14 @@ Device(:Uart8250) do
   end
 
   Register(:lsr, size: 0x1, offset: 0x5, type: :ro) do
-    field :dr, 0x0
-    field :oe, 0x1
-    field :pe, 0x2
-    field :fe, 0x3
-    field :bi, 0x4
-    field :thre, 0x5
-    field :temt, 0x6
-    field :zero, 0x7
+    Field :dr, 0x0
+    Field :oe, 0x1
+    Field :pe, 0x2
+    Field :fe, 0x3
+    Field :bi, 0x4
+    Field :thre, 0x5
+    Field :temt, 0x6
+    Field :zero, 0x7
 
     Method(:read, ret: B8()) do
       this[] = 0
@@ -240,14 +240,14 @@ Device(:Uart8250) do
   end
 
   Register(:msr, size: 0x1, offset: 0x6, type: :ro) do
-    field :dcts, 0x0
-    field :ddsr, 0x1
-    field :teri, 0x2
-    field :ddcd, 0x3
-    field :cts, 0x4
-    field :dsr, 0x5
-    field :ri, 0x6
-    field :dcd, 0x7
+    Field :dcts, 0x0
+    Field :ddsr, 0x1
+    Field :teri, 0x2
+    Field :ddcd, 0x3
+    Field :cts, 0x4
+    Field :dsr, 0x5
+    Field :ri, 0x6
+    Field :dcd, 0x7
   end
 
   Register(:scr, size: 0x1, offset: 0x7) {}
