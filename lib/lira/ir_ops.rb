@@ -5,51 +5,55 @@ module Lira
   class TypeCheckError < StandardError; end
 
   module BaseOp
-    NOT = :not
-    NEG = :neg
-    ADD = :add
-    SUB = :sub
-    MUL = :mul
-    AND = :and
-    ORR = :orr
-    XOR = :xor
-    LSL = :lsl
-    LSR = :lsr
-    ASR = :asr
-    EQ = :eq
-    NE = :ne
-    SLT = :slt
-    SLE = :sle
-    SGT = :sgt
-    SGE = :sge
-    ULT = :ult
-    ULE = :ule
-    UGT = :ugt
-    UGE = :uge
-    DIV_U = :div_u
-    DIV_S = :div_s
-    REM_U = :rem_u
-    REM_S = :rem_s
-    ROR = :ror
-    ROL = :rol
-    ADD_OVERFLOW = :add_overflow
-    SUB_OVERFLOW = :sub_overflow
-    SELECT = :select
-    EXTEND_SIGN = :extend_sign
-    EXTEND_ZERO = :extend_zero
-    EXTRACT_LOW = :extract_low
-    POPCNT = :popcnt
-    CTZ = :ctz
-    CLZ = :clz
-    REVERSE = :reverse
+    NOT = "not"
+    NEG = "neg"
+    ADD = "add"
+    SUB = "sub"
+    MUL = "mul"
+    AND = "and"
+    ORR = "orr"
+    XOR = "xor"
+    LSL = "lsl"
+    LSR = "lsr"
+    ASR = "asr"
+    EQ = "eq"
+    NE = "ne"
+    SLT = "slt"
+    SLE = "sle"
+    SGT = "sgt"
+    SGE = "sge"
+    ULT = "ult"
+    ULE = "ule"
+    UGT = "ugt"
+    UGE = "uge"
+    DIV_U = "div_u"
+    DIV_S = "div_s"
+    REM_U = "rem_u"
+    REM_S = "rem_s"
+    ROR = "ror"
+    ROL = "rol"
+    ADD_OVERFLOW = "add_overflow"
+    SUB_OVERFLOW = "sub_overflow"
+    SELECT = "select"
+    EXTEND_SIGN = "extend_sign"
+    EXTEND_ZERO = "extend_zero"
+    EXTRACT_LOW = "extract_low"
+    POPCNT = "popcnt"
+    CTZ = "ctz"
+    CLZ = "clz"
+    REVERSE = "reverse"
   end
 
   class UnaryOp < Operation
-    def initialize(out_bits, semantic_base, name: nil)
-      name ||= "#{semantic_base}_#{out_bits}"
-      super(name, [], [out_bits], [out_bits],
+    def initialize(out_bits)
+      semantic_base = self.class.op_base
+      super("#{semantic_base}_#{out_bits}", [], [out_bits], [out_bits],
             semantic_base: semantic_base, semantic_func: nil, semantic_table: nil)
       check_signature
+    end
+
+    def self.from_operation(op)
+      new(op.inputs[0]).restore_from(op)
     end
 
     def check_signature
@@ -60,11 +64,15 @@ module Lira
   end
 
   class BinaryOp < Operation
-    def initialize(bits, semantic_base, name: nil)
-      name ||= "#{semantic_base}_#{bits}"
-      super(name, [], [bits, bits], [bits],
+    def initialize(bits)
+      semantic_base = self.class.op_base
+      super("#{semantic_base}_#{bits}", [], [bits, bits], [bits],
             semantic_base: semantic_base, semantic_func: nil, semantic_table: nil)
       check_signature
+    end
+
+    def self.from_operation(op)
+      new(op.inputs[0]).restore_from(op)
     end
 
     def check_signature
@@ -78,27 +86,34 @@ module Lira
   end
 
   class CmpOp < Operation
-    def initialize(bits, semantic_base, out_bits = 1, name: nil)
-      name ||= "#{semantic_base}_#{bits}"
-      super(name, [], [bits, bits], [out_bits],
+    def initialize(bits)
+      semantic_base = self.class.op_base
+      super("#{semantic_base}_#{bits}", [], [bits, bits], [1],
             semantic_base: semantic_base, semantic_func: nil, semantic_table: nil)
       check_signature
+    end
+
+    def self.from_operation(op)
+      new(op.inputs[0]).restore_from(op)
     end
 
     def check_signature
       raise TypeCheckError, 'input[0] must be positive' unless inputs[0] > 0
       raise TypeCheckError, 'input[1] must be positive' unless inputs[1] > 0
-      raise TypeCheckError, 'output must be positive' unless outputs[0] > 0
       raise TypeCheckError, 'input widths differ' unless inputs[0] == inputs[1]
     end
   end
 
   class TernaryOp < Operation
-    def initialize(bits, semantic_base, name: nil)
-      name ||= "#{semantic_base}_#{bits}"
-      super(name, [], [bits, bits, bits], [bits],
+    def initialize(bits)
+      semantic_base = self.class.op_base
+      super("#{semantic_base}_#{bits}", [], [bits, bits, bits], [bits],
             semantic_base: semantic_base, semantic_func: nil, semantic_table: nil)
       check_signature
+    end
+
+    def self.from_operation(op)
+      new(op.inputs[0]).restore_from(op)
     end
 
     def check_signature
@@ -113,11 +128,15 @@ module Lira
   end
 
   class ExtendOp < Operation
-    def initialize(in_bits, out_bits, semantic_base, name: nil)
-      name ||= "#{semantic_base}_#{in_bits}_to_#{out_bits}"
-      super(name, [], [in_bits], [out_bits],
+    def initialize(in_bits, out_bits)
+      semantic_base = self.class.op_base
+      super("#{semantic_base}_#{in_bits}_to_#{out_bits}", [], [in_bits], [out_bits],
             semantic_base: semantic_base, semantic_func: nil, semantic_table: nil)
       check_signature
+    end
+
+    def self.from_operation(op)
+      new(op.inputs[0], op.outputs[0]).restore_from(op)
     end
 
     def check_signature
@@ -128,11 +147,15 @@ module Lira
   end
 
   class ExtractLowOp < Operation
-    def initialize(in_bits, out_bits, semantic_base, name: nil)
-      name ||= "#{semantic_base}_#{in_bits}_to_#{out_bits}"
-      super(name, [], [in_bits], [out_bits],
+    def initialize(in_bits, out_bits)
+      semantic_base = self.class.op_base
+      super("#{semantic_base}_#{in_bits}_to_#{out_bits}", [], [in_bits], [out_bits],
             semantic_base: semantic_base, semantic_func: nil, semantic_table: nil)
       check_signature
+    end
+
+    def self.from_operation(op)
+      new(op.inputs[0], op.outputs[0]).restore_from(op)
     end
 
     def check_signature
@@ -143,159 +166,247 @@ module Lira
   end
 
   class Not < UnaryOp
-    def initialize(bits); super(bits, BaseOp::NOT); end
+    self.op_base = BaseOp::NOT
+
+    def initialize(bits); super(bits); end
   end
 
   class Neg < UnaryOp
-    def initialize(bits); super(bits, BaseOp::NEG); end
+    self.op_base = BaseOp::NEG
+
+    def initialize(bits); super(bits); end
   end
 
   class Add < BinaryOp
-    def initialize(bits); super(bits, BaseOp::ADD); end
+    self.op_base = BaseOp::ADD
+
+    def initialize(bits); super(bits); end
   end
 
   class Sub < BinaryOp
-    def initialize(bits); super(bits, BaseOp::SUB); end
+    self.op_base = BaseOp::SUB
+
+    def initialize(bits); super(bits); end
   end
 
   class Mul < BinaryOp
-    def initialize(bits); super(bits, BaseOp::MUL); end
+    self.op_base = BaseOp::MUL
+
+    def initialize(bits); super(bits); end
   end
 
   class And < BinaryOp
-    def initialize(bits); super(bits, BaseOp::AND); end
+    self.op_base = BaseOp::AND
+
+    def initialize(bits); super(bits); end
   end
 
   class Orr < BinaryOp
-    def initialize(bits); super(bits, BaseOp::ORR); end
+    self.op_base = BaseOp::ORR
+
+    def initialize(bits); super(bits); end
   end
 
   class Xor < BinaryOp
-    def initialize(bits); super(bits, BaseOp::XOR); end
+    self.op_base = BaseOp::XOR
+
+    def initialize(bits); super(bits); end
   end
 
   class Lsl < BinaryOp
-    def initialize(bits); super(bits, BaseOp::LSL); end
+    self.op_base = BaseOp::LSL
+
+    def initialize(bits); super(bits); end
   end
 
   class Lsr < BinaryOp
-    def initialize(bits); super(bits, BaseOp::LSR); end
+    self.op_base = BaseOp::LSR
+
+    def initialize(bits); super(bits); end
   end
 
   class Asr < BinaryOp
-    def initialize(bits); super(bits, BaseOp::ASR); end
+    self.op_base = BaseOp::ASR
+
+    def initialize(bits); super(bits); end
   end
 
   class Eq < CmpOp
-    def initialize(bits); super(bits, BaseOp::EQ); end
+    self.op_base = BaseOp::EQ
+
+    def initialize(bits); super(bits); end
   end
 
   class Ne < CmpOp
-    def initialize(bits); super(bits, BaseOp::NE); end
+    self.op_base = BaseOp::NE
+
+    def initialize(bits); super(bits); end
   end
 
   class Slt < CmpOp
-    def initialize(bits); super(bits, BaseOp::SLT); end
+    self.op_base = BaseOp::SLT
+
+    def initialize(bits); super(bits); end
   end
 
   class Sle < CmpOp
-    def initialize(bits); super(bits, BaseOp::SLE); end
+    self.op_base = BaseOp::SLE
+
+    def initialize(bits); super(bits); end
   end
 
   class Sgt < CmpOp
-    def initialize(bits); super(bits, BaseOp::SGT); end
+    self.op_base = BaseOp::SGT
+
+    def initialize(bits); super(bits); end
   end
 
   class Sge < CmpOp
-    def initialize(bits); super(bits, BaseOp::SGE); end
+    self.op_base = BaseOp::SGE
+
+    def initialize(bits); super(bits); end
   end
 
   class Ult < CmpOp
-    def initialize(bits); super(bits, BaseOp::ULT); end
+    self.op_base = BaseOp::ULT
+
+    def initialize(bits); super(bits); end
   end
 
   class Ule < CmpOp
-    def initialize(bits); super(bits, BaseOp::ULE); end
+    self.op_base = BaseOp::ULE
+
+    def initialize(bits); super(bits); end
   end
 
   class Ugt < CmpOp
-    def initialize(bits); super(bits, BaseOp::UGT); end
+    self.op_base = BaseOp::UGT
+
+    def initialize(bits); super(bits); end
   end
 
   class Uge < CmpOp
-    def initialize(bits); super(bits, BaseOp::UGE); end
+    self.op_base = BaseOp::UGE
+
+    def initialize(bits); super(bits); end
   end
 
   class ExtendSign < ExtendOp
-    def initialize(in_bits, out_bits); super(in_bits, out_bits, BaseOp::EXTEND_SIGN); end
+    self.op_base = BaseOp::EXTEND_SIGN
+
+    def initialize(in_bits, out_bits); super(in_bits, out_bits); end
   end
 
   class ExtendZero < ExtendOp
-    def initialize(in_bits, out_bits); super(in_bits, out_bits, BaseOp::EXTEND_ZERO); end
+    self.op_base = BaseOp::EXTEND_ZERO
+
+    def initialize(in_bits, out_bits); super(in_bits, out_bits); end
   end
 
   class ExtractLow < ExtractLowOp
-    def initialize(in_bits, out_bits); super(in_bits, out_bits, BaseOp::EXTRACT_LOW); end
+    self.op_base = BaseOp::EXTRACT_LOW
+
+    def initialize(in_bits, out_bits); super(in_bits, out_bits); end
   end
 
   class Popcnt < UnaryOp
-    def initialize(bits); super(bits, BaseOp::POPCNT); end
+    self.op_base = BaseOp::POPCNT
+
+    def initialize(bits); super(bits); end
   end
 
   class Ctz < UnaryOp
-    def initialize(bits); super(bits, BaseOp::CTZ); end
+    self.op_base = BaseOp::CTZ
+
+    def initialize(bits); super(bits); end
   end
 
   class Clz < UnaryOp
-    def initialize(bits); super(bits, BaseOp::CLZ); end
+    self.op_base = BaseOp::CLZ
+
+    def initialize(bits); super(bits); end
   end
 
   class Reverse < UnaryOp
-    def initialize(bits); super(bits, BaseOp::REVERSE); end
+    self.op_base = BaseOp::REVERSE
+
+    def initialize(bits); super(bits); end
   end
 
   class RemU < BinaryOp
-    def initialize(bits); super(bits, BaseOp::REM_U); end
+    self.op_base = BaseOp::REM_U
+
+    def initialize(bits); super(bits); end
   end
 
   class RemS < BinaryOp
-    def initialize(bits); super(bits, BaseOp::REM_S); end
+    self.op_base = BaseOp::REM_S
+
+    def initialize(bits); super(bits); end
   end
 
   class Ror < BinaryOp
-    def initialize(bits); super(bits, BaseOp::ROR); end
+    self.op_base = BaseOp::ROR
+
+    def initialize(bits); super(bits); end
   end
 
   class Rol < BinaryOp
-    def initialize(bits); super(bits, BaseOp::ROL); end
+    self.op_base = BaseOp::ROL
+
+    def initialize(bits); super(bits); end
   end
 
   class AddOverflow < CmpOp
-    def initialize(bits); super(bits, BaseOp::ADD_OVERFLOW, out_bits: 1); end
+    self.op_base = BaseOp::ADD_OVERFLOW
+
+    def initialize(bits); super(bits); end
   end
 
   class SubOverflow < CmpOp
-    def initialize(bits); super(bits, BaseOp::SUB_OVERFLOW, out_bits: 1); end
+    self.op_base = BaseOp::SUB_OVERFLOW
+
+    def initialize(bits); super(bits); end
   end
 
   class DivU < TernaryOp
-    def initialize(bits); super(bits, BaseOp::DIV_U); end
+    self.op_base = BaseOp::DIV_U
+
+    def initialize(bits); super(bits); end
   end
 
   class DivS < TernaryOp
-    def initialize(bits); super(bits, BaseOp::DIV_S); end
+    self.op_base = BaseOp::DIV_S
+
+    def initialize(bits); super(bits); end
   end
 
   class Select < Operation
+    self.op_base = BaseOp::SELECT
+
     def initialize(bits)
       name = "select_#{bits}"
       super(name, [], [1, bits, bits], [bits],
-            semantic_base: BaseOp::SELECT, semantic_func: nil, semantic_table: nil)
+            semantic_base: self.class.op_base, semantic_func: nil, semantic_table: nil)
       check_signature
+    end
+
+    def self.from_operation(op)
+      new(op.inputs[1]).restore_from(op)
     end
 
     def check_signature
       raise TypeCheckError, 'true/false branches mismatch' unless inputs[1] == inputs[2] && inputs[1] == outputs[0]
     end
+  end
+
+  def self.from_operation(op)
+    sb = op.semantic_base
+    return op if sb.nil?
+
+    cls = Operation.typed_ops[sb]
+    raise "Unexpected operation with semantic #{sb}" if cls.nil?
+
+    cls.from_operation(op)
   end
 end

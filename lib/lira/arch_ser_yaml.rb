@@ -2,6 +2,7 @@
 require 'yaml'
 require_relative 'ir'
 require_relative 'arch'
+require_relative 'ir_ops'
 
 module Lira
   module ArchSerYaml
@@ -55,6 +56,10 @@ module Lira
     def read_arch(filepath)
       data = YAML.load_file(filepath)
       from_serializable(Arch, data)
+    end
+
+    def copy_arch(src, dst)
+      write_arch(read_arch(src), dst)
     end
   end
 end
