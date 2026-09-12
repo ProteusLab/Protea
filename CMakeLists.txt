@@ -12,8 +12,8 @@ if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
                PROPERTY VALUE "${CMAKE_BINARY_DIR}/install")
 endif()
 
-find_package(Ruby 4.0.1 EXACT REQUIRED)
-find_package(Python3 3.10 EXACT REQUIRED COMPONENTS Interpreter)
+find_package(Ruby 4.0.6 EXACT REQUIRED)
+find_package(Python3 3.9.6 EXACT REQUIRED COMPONENTS Interpreter)
 message("Python found: ${Python3_EXECUTABLE}")
 
 include(ExternalProject)
