@@ -15,59 +15,15 @@ from Target.RISC_V.decoder_emitter import gen_protea_decoder
 class RiscvConfig(IConfig):
     @property
     def supported_instructions(self) -> Set[str]:
-        return {
-                "add", 
-                "sub", 
-                "mul", 
-                "div", 
-                "divu", 
-                "lui", 
-                "auipc",
-                "sll", 
-                "slt", 
-                "sltu",
-                "xor",
-                "srl",
-                "sra",
-                "or",
-                "and",
-                "addi",
-                "slti",
-                "sltiu",
-                "xori",
-                "ori",
-                "andi",
-                "slli",
-                "srli",
-                "srai",
-                "beq",
-                "bne", 
-                "blt",
-                "bge",
-                "bltu",
-                "bgeu",
-                "jal",
-                "jalr",
-                "sb",
-                "sh",
-                "sw",
-                "lb",
-                "lh",  
-                "lw",
-                "lbu",
-                "lhu",
-            #   "ecall",
-            #   "ebreak",
-            #   "fence",
-                "mulh",
-                "mulhsu",
-                "mulhu",
-                "rem",
-                "remu"
-            }
+        pass
 
     @property
     def excluded_instructions(self) -> Set[str]:
+        return {
+            "ecall",
+            "ebreak",
+            "fence"
+        }
         pass
 
     @property
