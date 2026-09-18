@@ -36,11 +36,12 @@ add_dependencies(${PROJECT_NAME} protea_irgen)
 add_executable(sim ${PROTEA_SIMGEN_OUTPUT_SOURCES} 
   ${protea_simlib_SOURCE_DIR}/elf_loader.cc 
   ${protea_simlib_SOURCE_DIR}/base_jit.cc 
+  ${protea_simlib_SOURCE_DIR}/riscv_arch_ops.cc
   ${protea_simlib_SOURCE_DIR}/sim.cc 
   ${protea_simlib_SOURCE_DIR}/jit_factory.cc
   ${protea_simlib_SOURCE_DIR}/memory.cc)
   
 target_include_directories(sim PRIVATE ${CMAKE_CURRENT_BINARY_DIR} ${protea_simlib_SOURCE_DIR})
-target_link_libraries(sim elfio CLI11 fmt)
+target_link_libraries(sim elfio CLI11 fmt softfloat)
 target_compile_features(sim PRIVATE cxx_std_23)
 install(TARGETS sim)

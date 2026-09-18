@@ -1,5 +1,6 @@
 require_relative 'base'
 require_relative 'var'
+require_relative 'fp_ops'
 require 'Utility/type'
 
 module SimInfra
@@ -10,6 +11,7 @@ module SimInfra
   class Scope
     include GlobalCounter # used for temp variables IDs
     include SimInfra
+    include FloatingPointOps
 
     attr_reader :tree, :vars, :parent, :mem
 
@@ -59,34 +61,61 @@ module SimInfra
       Constant.new(self, "const_#{next_counter}", what) if what.class == Integer
     end
 
-    def binOp(a, b, op)
+    def binOp(a, b, op, attrs = nil)
       binOpWType(a, b, op,
-                 Utility.get_type(a.type).typeof == :r ? ('b' + Utility.get_type(a.type).bitsize.to_s).to_sym : a.type)
+                 Utility.get_type(a.type).typeof == :r ? ('b' + Utility.get_type(a.type).bitsize.to_s).to_sym : a.type,
+                 attrs)
     end
 
-    def binOpWType(a, b, op, t)
+    def binOpWType(a, b, op, t, attrs = nil)
       a = resolve_const(a)
       b = resolve_const(b)
       # TODO: check constant size <= bitsize(var)
       # assert(a.type== b.type|| a.type == :iconst || b.type== :iconst)
-      stmt op, [tmpvar(t), a, b]
+      stmt op, [tmpvar(t), a, b], attrs
     end
 
-    # redefine! add & sub will never be the same
-    def add(a, b) = binOp(a, b, :add)
-    def sub(a, b) = binOp(a, b, :sub)
-    def shl(a, b) = binOp(a, b, :shl)
-    def lt(a, b) = binOpWType(a, b, :lt, :b1)
-    def gt(a, b) = binOpWType(a, b, :gt, :b1)
-    def le(a, b) = binOpWType(a, b, :le, :b1)
-    def ge(a, b) = binOpWType(a, b, :ge, :b1)
-    def xor(a, b) = binOp(a, b, :xor)
-    def shr(a, b) = binOp(a, b, :shr)
-    def ashr(a, b) = binOp(a, b, :ashr)
-    def or(a, b) = binOp(a, b, :or)
-    def and(a, b) = binOp(a, b, :and)
-    def eq(a, b) = binOpWType(a, b, :eq, :b1)
-    def ne(a, b) = binOpWType(a, b, :ne, :b1)
+    def getOpType(a)
+      Utility.get_type(a.type).typeof == :r ? ('b' + Utility.get_type(a.type).bitsize.to_s).to_sym : a.type
+    end
+
+    def unOp(a, op, attrs = nil)
+      unOpWType(a, op, getOpType(a), attrs)
+    end
+
+    def unOpWType(a, op, t, attrs = nil)
+      a = resolve_const(a)
+      stmt op, [tmpvar(t), a], attrs
+    end
+
+    def ternOp(a, b, c, op, attrs = nil)
+      ternOpWType(a, b, c, op, getOpType(a), attrs)
+    end
+
+    def ternOpWType(a, b, c, op, t, attrs = nil)
+      a = resolve_const(a)
+      b = resolve_const(b)
+      c = resolve_const(c)
+      # TODO: check constant size <= bitsize(var)
+      # assert(a.type== b.type|| a.type == :iconst || b.type== :iconst)
+      stmt op, [tmpvar(t), a, b, c], attrs
+    end
+
+    # Integer arithmetic
+    def add(a, b, attrs = nil) = binOp(a, b, :add, attrs)
+    def sub(a, b, attrs = nil) = binOp(a, b, :sub, attrs)
+    def shl(a, b, attrs = nil) = binOp(a, b, :shl, attrs)
+    def lt(a, b, attrs = nil) = binOpWType(a, b, :lt, :b1, attrs)
+    def gt(a, b, attrs = nil) = binOpWType(a, b, :gt, :b1, attrs)
+    def le(a, b, attrs = nil) = binOpWType(a, b, :le, :b1, attrs)
+    def ge(a, b, attrs = nil) = binOpWType(a, b, :ge, :b1, attrs)
+    def xor(a, b, attrs = nil) = binOp(a, b, :xor, attrs)
+    def shr(a, b, attrs = nil) = binOp(a, b, :shr, attrs)
+    def ashr(a, b, attrs = nil) = binOp(a, b, :ashr, attrs)
+    def or(a, b, attrs = nil) = binOp(a, b, :or, attrs)
+    def and(a, b, attrs = nil) = binOp(a, b, :and, attrs)
+    def eq(a, b, attrs = nil) = binOpWType(a, b, :eq, :b1, attrs)
+    def ne(a, b, attrs = nil) = binOpWType(a, b, :ne, :b1, attrs)
 
     def select(p, a, b)
       a = resolve_const(a)
@@ -153,7 +182,7 @@ module SimInfra
     def branch(expr) = stmt(:branch, [expr])
 
     private def tmpvar(type) = var("_tmp#{next_counter}".to_sym, type)
-    # stmtadds statement into tree and retursoperand[0]
+    # stmt adds statement into tree and returns operand[0]
     # which result in near all cases
     def stmt(name, operands, attrs = nil)
       for i in 1...operands.length
@@ -165,7 +194,11 @@ module SimInfra
 
     def read_transform(operation_name, op)
       if op.class == Var && !op.regset.nil?
-        x = tmpvar(('b' + op.type.to_s[1..-1]).to_sym)
+        case op.regset
+        when :XRegs then x = tmpvar(('b' + op.type.to_s[1..-1]).to_sym)
+        when :FRegs then x = tmpvar(('f' + op.type.to_s[1..-1]).to_sym)
+        else raise 'Unknown regset'
+        end
         @tree << IrStmt.new(:readReg, [x, op], nil)
         x
       else

@@ -26,7 +26,23 @@ module SimInfra
     end
 
     def xreg(name)
-        return name, :r32, "let :#{name}, :XRegs, [:op], :r32, f_#{name}"
+        return name, :r64, "let :#{name}, :XRegs, [:op], :r64, f_#{name}"
+    end
+
+    def shamt6_imm(imm)
+        return imm, :s32, "let :#{imm}, [:op], :s32, f_shamt6"
+    end
+
+    def shamt5_imm(imm)
+        return imm, :s32, "let :#{imm}, [:op], :s32, f_shamt5"
+    end
+
+    def csr_imm(imm)
+        return imm, :s32, "let :#{imm}, [:op], :s32, f_csr"
+    end
+
+    def zimm_imm(imm)
+        return imm, :s32, "let :#{imm}, [:op], :s32, f_zimm"
     end
 end
 
@@ -70,6 +86,48 @@ module SimInfra
             field(:f_temp, 26, 25, 0b01),
             field(:f_sopcode, 31, 27, sopcode),
         ], is_imm(:imm), xreg(:rs1), xreg(:rd)
+    end
+
+    def format_i_shift64(opcode, func3, funct6)
+        return :I_SHIFT64, [
+            field(:f_opcode, 6, 0, opcode),
+            field(:func3, 14, 12, func3),
+            field(:f_shamt6, 25, 20),
+            field(:f_rd, 11, 7),
+            field(:f_rs1, 19, 15),
+            field(:f_funct6, 31, 26, funct6),
+        ], shamt6_imm(:imm), xreg(:rs1), xreg(:rd)
+    end
+
+    def format_i_shiftw(opcode, func3, funct7)
+        return :I_SHIFTW, [
+            field(:f_opcode, 6, 0, opcode),
+            field(:func3, 14, 12, func3),
+            field(:f_shamt5, 24, 20),
+            field(:f_rd, 11, 7),
+            field(:f_rs1, 19, 15),
+            field(:f_funct7, 31, 25, funct7),
+        ], shamt5_imm(:imm), xreg(:rs1), xreg(:rd)
+    end
+
+    def format_csr(opcode, func3)
+        return :CSR, [
+            field(:f_opcode, 6, 0, opcode),
+            field(:f_func3, 14, 12, func3),
+            field(:f_rd, 11, 7),
+            field(:f_rs1, 19, 15),
+            field(:f_csr, 31, 20),
+        ], csr_imm(:csr), xreg(:rs1), xreg(:rd)
+    end
+
+    def format_csri(opcode, func3)
+        return :CSRI, [
+            field(:f_opcode, 6, 0, opcode),
+            field(:f_func3, 14, 12, func3),
+            field(:f_rd, 11, 7),
+            field(:f_zimm, 19, 15),
+            field(:f_csr, 31, 20),
+        ], csr_imm(:csr), zimm_imm(:zimm), xreg(:rd)
     end
 
     def format_b(opcode, funct3)

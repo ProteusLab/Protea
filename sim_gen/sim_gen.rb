@@ -12,7 +12,9 @@ require 'sim_gen/ExecEngines/llvm_jit'
 require 'yaml'
 
 yaml_data = YAML.load_file(ARGV[0])
-yaml_data[:isa_name] = "RISCV"
+architecture_name = yaml_data[:architecture_name] || 'RISC-V'
+yaml_data[:architecture_name] = architecture_name
+yaml_data[:isa_name] = architecture_name.gsub(/[^0-9A-Za-z]/, '')
 
 File.write('cpu_state.hh', SimGen::CPUState::Header.generate_cpu_state(yaml_data))
 File.write('base_exec_engine.hh', SimGen::BaseExecEngine::Header.generate_base_exec_engine(yaml_data))

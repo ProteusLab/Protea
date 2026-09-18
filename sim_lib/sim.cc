@@ -1,5 +1,6 @@
 #include <CLI/CLI.hpp>
 #include <chrono>
+#include <cstdlib>
 #include <filesystem>
 #include <fmt/core.h>
 #include <fmt/ostream.h>
@@ -56,7 +57,7 @@ int main(int argc, const char *argv[]) try {
   fmt::println("MIPS: {:.2f}",
                hart.getIcount() / (duration.count() * 1'000'000));
 
-  return EXIT_SUCCESS;
+  return hart.m_cpu->m_exit_code;
 } catch (const std::exception &ex) {
   fmt::println(std::cerr, "Caught exception of type {}: {}", typeid(ex).name(),
                ex.what());

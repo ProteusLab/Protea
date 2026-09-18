@@ -2,12 +2,15 @@ require_relative "value"
 # Testing infra
 
 module SimInfra
+    @@architecture_name = nil
+
     # @@instructions -array of instruction description
     # shows result of our tests in interactive Ruby (IRB) or standalone
     def self.serialize(msg= nil)
         require 'yaml'
         yaml_data = YAML.dump(
           {
+            architecture_name: @@architecture_name,
             regfiles: @@regfiles.map(&:to_h),
             instructions: @@instructions.map(&:to_h),
           }
@@ -18,6 +21,7 @@ module SimInfra
     def self.state
         yaml_data = YAML.dump(
             {
+                architecture_name: @@architecture_name,
                 regfiles: @@regfiles.map(&:to_h),
                 instructions: @@instructions.map(&:to_h),
             }
@@ -25,7 +29,14 @@ module SimInfra
     end
 
     # reset state
-    def siminfra_reset_module_state; @@instructions = []; end
+    def siminfra_reset_module_state
+        @@instructions = []
+        @@architecture_name = nil
+    end
+
+    def set_architecture_name(name)
+        @@architecture_name = name
+    end
 
     # mixin for global counter, function returns 0,1,2,....
     module GlobalCounter

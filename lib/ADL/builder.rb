@@ -1,12 +1,12 @@
 require_relative "scope"
 require "Utility/type"
 
-module SimInfra
+module SimInfra  
     class IrStmt
         attr_reader :name, :oprnds, :attrs
-        def initialize(name, oprnds, attrs)
-            @name = name; @oprnds = oprnds; @attrs = attrs;
-        end
+        def initialize(name, oprnds, attrs) 
+            @name = name; @oprnds = oprnds; @attrs = attrs; 
+        end 
 
         def to_h
             {
@@ -29,7 +29,7 @@ module SimInfra
 end
 
 # Basics
-module SimInfra  
+module SimInfra
     def assert(condition, msg = nil); raise msg if !condition; end
 
     @@instructions = []
@@ -77,25 +77,25 @@ module SimInfra
     class InstructionInfoBuilder
         include SimInfra
 
-        def initialize(name, feature) 
-            @info = InstructionInfo.new(name, feature) 
-            @info.code = Scope.new(nil) 
+        def initialize(name, feature)
+            @info = InstructionInfo.new(name, feature)
+            @info.code = Scope.new(nil)
 
             @@interface_functions.each do |func|
                 if !func[:return_types].empty?
                     @info.code.instance_eval "def #{func[:name]}(*args)
                         in_s = *args.map { |a| resolve_const(a) }
-                        in_stmt = [tmpvar(#{func[:return_types][0]})] 
+                        in_stmt = [tmpvar(#{func[:return_types][0].inspect})]
                         in_stmt.concat(in_s)
                         return stmt :#{func[:name]}, in_stmt
                     end
-                    "
+                    ", __FILE__, __LINE__ - 6
                 else
                     @info.code.instance_eval "def #{func[:name]}(*args)
                         in_s = *args.map { |a| resolve_const(a) }
                         return stmt :#{func[:name]}, in_s
                     end
-                    "
+                    ", __FILE__, __LINE__ - 4
                 end
             end
 
@@ -112,7 +112,7 @@ module SimInfra
                 sum_bits += Utility.get_type(f.value.type).bitsize
             end
             @info.XLEN = sum_bits / 8
-            @info.code.instance_eval "def xlen(); return #{@info.XLEN.to_s}; end"
+            @info.code.instance_eval "def xlen(); return #{@info.XLEN.to_s}; end", __FILE__, __LINE__
         end
         attr_reader :info
     end
@@ -136,7 +136,7 @@ module SimInfra
 
     def Interface(&blck)
         bldr = InterfaceBuilder.new()
-        
+
         bldr.instance_eval &blck
     end
 
@@ -180,8 +180,8 @@ module SimInfra
     end
 
     @@regfiles = []
-    class RegisterFileBuilder
-        def initialize(name) 
+    class RegisterFileBuilder 
+        def initialize(name)
             @info = RegisterFileInfo.new(name)
             @info.regs = []
         end
@@ -205,6 +205,14 @@ module SimInfra
     class RegisterFileBuilder
         def r32(sym, *args)
             @info.regs << Register.new(sym, 32, args[0] ? [args[0]] : [])
+        end
+
+        def r64(sym, *args)
+            @info.regs << Register.new(sym, 64, args[0] ? [args[0]] : [])
+        end
+
+        def f64(sym, *args)
+            @info.regs << Register.new(sym, 64, args[0] ? [args[0]] : [])
         end
 
         def zero()
