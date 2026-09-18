@@ -36,16 +36,16 @@ module SimGen
         when 'RISCV', 'RISC-V'
           'riscv_arch_ops.hh'
         else
-          'arch_ops.hh'
+          'fpu_arch_ops.hh'
         end
       end
 
       def architecture_support_type(input_ir)
         case input_ir[:architecture_name].to_s.upcase
         when 'RISCV', 'RISC-V'
-          'prot::arch::RISCVArchitectureSupport'
+          'prot::arch::RISCVFpuUtils'
         else
-          'prot::arch::ArchitectureSupport'
+          'prot::arch::FpuUtils'
         end
       end
 

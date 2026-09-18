@@ -5,9 +5,9 @@
 
 namespace prot::arch {
 
-class ArchitectureSupport {
+class FpuUtils {
 public:
-  virtual ~ArchitectureSupport() = default;
+  virtual ~FpuUtils() = default;
 
   [[nodiscard]] virtual std::uint32_t f32_classify(std::uint32_t value) const = 0;
   [[nodiscard]] virtual std::uint32_t f64_classify(std::uint64_t value) const = 0;
