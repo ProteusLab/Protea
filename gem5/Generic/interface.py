@@ -29,6 +29,36 @@ class Load(IInterface):
     def __call__(self, addr: str, data: str) -> str:
         return f"readMemAtomicLE(xc, traceData, {addr}, {data}, 0);"
 
+class Store(IInterface):
+    has_mem: ClassVar[bool] = True
+
+    @classmethod
+    def match(cls, name: str) -> bool:
+        return name.startswith("writeMem")
+
+    def __call__(self, addr: str, data: str) -> str:
+        return f"writeMemAtomicLE(xc, traceData, {data}, {addr}, 0, 0)"
+
+
+class ReadPC(IInterface):
+    @classmethod
+    def match(cls, name: str) -> bool:
+        return name == "getPC"
+
+    def __call__(self, addr: str, data: str) -> str:
+        return f"{data} = xc->pcState().instAddr();"
+
+
+class WritePC(IInterface):
+    @classmethod
+    def match(cls, name: str) -> bool:
+        return name == "setPC"
+
+    def __call__(self, addr: str, data: str) -> str:
+        return f"""std::unique_ptr<PCStateBase> npc(xc->pcState().clone());
+npc->set({data});
+xc->pcState(*npc)"""
+
 
 class InterfacesRegistry:
     def __init__(self, interfaces: List[type]):
@@ -43,7 +73,7 @@ class InterfacesRegistry:
 
     @classmethod
     def from_arch(cls, arch: Arch) -> "InterfacesRegistry":
-        reg = cls([Load])
+        reg = cls([Load, Store, ReadPC, WritePC])
         for func in arch.environment_functions:
             reg._map[func.name] = reg._match(func.name)
         return reg

@@ -65,6 +65,14 @@ class ReadMem:
 {self.interface(self.addr, self.var)}
 """
 
+class WriteMem:
+    def __init__(self, data: Variable, addr: Variable, interface):
+        self.data: Variable = data
+        self.addr: Variable = addr
+        self.interface = interface
+
+    def __str__(self) -> str:
+        return f"{self.interface(self.addr, self.data)};"
 
 class MemberAssign:
     def __init__(self, operand: Operand, value: Variable):

@@ -24,6 +24,7 @@ from .nodes import (
     ReadMem,
     ReadReg,
     Return,
+    WriteMem,
     WriteReg,
 )
 from .operand import Constant, Operand, Register, Variable
@@ -230,8 +231,17 @@ class SemanticBuilder(CodeBuilder):
                     f"{em.insn.name}: env '{func.name}' is not supported yet"
                 )
 
+            args = [em.resolve_var(name) for name in self.stmt.inputs]
+
+            if not self.stmt.outputs:
+                addr = args[0] if len(args) > 1 else None
+                data = args[-1]
+                em.nodes.append(WriteMem(data, addr, interface))
+                return
+
+            addr = args[0] if args else None
+
             width = self.stmt.outputs_types[0]
-            addr = em.resolve_var(self.stmt.inputs[0])
             out = self.stmt.outputs[0]
             data = em.variable(out, width)
             em.nodes.append(ReadMem(data, addr, interface))
