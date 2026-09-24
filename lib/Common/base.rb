@@ -1,7 +1,7 @@
 require_relative "value"
 # Testing infra
 
-module SimInfra
+module Protea
     # @@instructions -array of instruction description
     # shows result of our tests in interactive Ruby (IRB) or standalone
     def self.serialize(msg= nil)
@@ -25,12 +25,13 @@ module SimInfra
     end
 
     # reset state
-    def siminfra_reset_module_state; @@instructions = []; end
+    def Protea_reset_module_state; @@instructions = []; end
 
     # mixin for global counter, function returns 0,1,2,....
     module GlobalCounter
         @@counter = -1
         def next_counter; @@counter += 1; end
+        def self.reset; @@counter = -1; end
     end
 
     class Field

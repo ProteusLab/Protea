@@ -1,6 +1,106 @@
+# RuboCop policy for the Protea/Plod toolchain.
+#
+# Scope: only actively developed code is linted - the Plod toolchain
+# (lib/Plod, exe/plod), the device descriptions (lib/Devices) and the
+# build/test entry points (Rakefile, tests/Plod). The legacy sim/ADL
+# generators (lib/ADL, lib/Common, lib/Utility, lib/Target, sim_gen,
+# code_gen, ser2ruby, lib/ir_gen.rb, dsl.gemspec, Gemfile) are frozen
+# and excluded from linting instead of being reformatted.
+#
+# The DSLs are Ruby-hosted: their keywords are PascalCase method calls
+# (Device, Field, Instruction) and their bodies intentionally use short
+# names and C-like expressions (`x == 0`). Several cops therefore need
+# file-level exceptions rather than source changes, noted per cop below.
+
+AllCops:
+  NewCops: enable
+  SuggestExtensions: false
+  TargetRubyVersion: 3.4
+  Exclude:
+    - 'build/**/*'      # CMake trees with vendored bundles (gems ship their own .rubocop.yml)
+    - 'vendor/**/*'
+    - 'lib/ADL/**/*'    # frozen legacy sim generators
+    - 'lib/Common/**/*'
+    - 'lib/Utility/**/*'
+    - 'lib/Target/**/*'
+    - 'lib/ir_gen.rb'
+    - 'sim_gen/**/*'
+    - 'code_gen/**/*'
+    - 'ser2ruby/**/*'
+    - 'dsl.gemspec'     # gem metadata, kept as shipped
+    - 'Gemfile'
+
+# Compiler passes (sema, IR, backend emitters) are inherently branchy and
+# long: check_stmt/expr_type are big case-dispatches by design. Complexity
+# budgets would only force artificial fragmentation.
+Metrics:
+  Enabled: false
+
+# DSL keywords are PascalCase method calls defined/invoked from device
+# descriptions (Device, Register, Init, Field, ...). `enableIf` is a Plod
+# DSL keyword used by lib/Devices/uart8250.rb.
+Naming/MethodName:
+  AllowedPatterns:
+    - '^[A-Z]'
+    - '^enableIf$'
+
+# Short parameter names (id, tc, fe, ns, ...) mirror the DSL surface and
+# the IR node fields they carry.
+Naming/MethodParameterName:
+  Enabled: false
+
+# File names follow domain conventions, not constant names: Plod.rb mirrors
+# the module, device files are named after devices (clint.rb, uart8250.rb),
+# tests use the *_tests.rb suffix.
+Naming/FileName:
+  Enabled: false
+
+# `x == 0` and `(a & b) == 0` in device files are DSL expression syntax
+# lowered verbatim into the IR; rewriting them to .zero?/.nobits? changes
+# the language surface (see commit ab5ccce for a reverted case).
+Style/NumericPredicate:
+  Exclude:
+    - 'lib/Devices/**/*'
+Style/BitwisePredicate:
+  Exclude:
+    - 'lib/Devices/**/*'
+
+# Empty blocks are meaningful DSL markers (AbstractStruct(:Tick) {}).
+Lint/EmptyBlock:
+  Exclude:
+    - 'lib/Devices/**/*'
+
+# Device descriptions chain DSL calls across lines and use `a + b` as a
+# DSL concat expression lowered into the IR; Ruby interpolation would
+# eagerly evaluate DSL operands to strings.
+Style/MultilineBlockChain:
+  Exclude:
+    - 'lib/Devices/**/*'
+Style/StringConcatenation:
+  Exclude:
+    - 'lib/Devices/**/*'
+
+# IR node and DSL builder classes inherit from blank slates (Plod::Slate,
+# Types::Base) that define no state; every subclass initializes its own ivars.
+Lint/MissingSuper:
+  Exclude:
+    - 'lib/Plod/**/*'
+
+# Minitest assertions read more naturally as plain blocks.
+Lint/AmbiguousBlockAssociation:
+  Exclude:
+    - 'tests/**/*'
+
+# Test bodies pack setup+assertion into single long lines by convention.
+Layout/LineLength:
+  Exclude:
+    - 'tests/**/*'
+Lint/LiteralAsCondition:
+  Exclude:
+    - 'tests/**/*'
+
+Style/Documentation:
+  Enabled: false
+
 Style/ClassAndModuleChildren:
   EnforcedStyle: nested
-Metrics/MethodLength:
-  Max: 25
-Metrics/AbcSize:
-  Max: 32
