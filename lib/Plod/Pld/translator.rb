@@ -9,9 +9,12 @@ module Plod
     # Plod frontend understands. The output is deterministic and preserves
     # the paragraph structure (blank lines) of the .pld source.
     #
-    # Mapping rules:
+    #   Mapping rules:
     #   - PascalCase type/decl names are kept; enum references get a
     #     lowercase-first receiver: `InterruptIds.Rx` -> `interruptIds.Rx`.
+    #   - Register props and return types map to capitalized Ruby kwargs:
+    #     `size(0x1)` -> `Size: 0x1`, `type(ro)` -> `Type: :ro`,
+    #     `b8 read()` -> `Method(:read, Ret: B8())`.
     #   - Assignments (including compound ones) lower to `name[] = expr`,
     #     desugaring `x |= y` to `x[] = x | y`; `self` becomes `this`.
     #   - `&x` lowers to `GetPtr(x)`, `static_cast<T>(e)` to `Cast(T(), e)`.
@@ -70,21 +73,21 @@ module Plod
       end
 
       def with_block(header)
-        emit_line("#{header} do")
+        emit_line("#{header} {")
         @indent += 1
         yield
         @indent -= 1
-        emit_line('end')
+        emit_line('}')
       end
 
       def with_block_body(header, body)
         return emit_line("#{header} {}") if body.nil? || body.empty?
 
-        emit_line("#{header} do")
+        emit_line("#{header} {")
         @indent += 1
         body.each { |stmt| translate_stmt(stmt) }
         @indent -= 1
-        emit_line('end')
+        emit_line('}')
       end
 
       # -- declarations ------------------------------------------------------------
@@ -174,14 +177,14 @@ module Plod
 
       def register_kwarg(name, arg)
         value = arg.is_a?(Hash) ? arg[:raw] : arg
-        name == 'type' ? "type: :#{value}" : "#{name}: #{value}"
+        name == 'type' ? "Type: :#{value}" : "#{name.capitalize}: #{value}"
       end
 
       def translate_register_item(item)
         blank_line(item)
         case item
         when Parser::EnableIf
-          emit_line("enableIf { #{expr(item.expr)} }")
+          emit_line("EnableIf { #{expr(item.expr)} }")
         when Parser::RegFieldDecl
           range = item.lo == item.hi ? item.lo : "[#{item.lo}, #{item.hi}]"
           emit_line("Field :#{item.name}, #{range}")
@@ -200,7 +203,7 @@ module Plod
       # -- signatures -----------------------------------------------------------------
       def method_call(kind, name, args, ret)
         kwargs = args.map { |p| "#{p.name}: #{type_expr(p.type)}" }
-        kwargs << "ret: #{type_expr(ret)}" if ret && ret.name != 'void'
+        kwargs << "Ret: #{type_expr(ret)}" if ret && ret.name != 'void'
         kwargs.empty? ? "#{kind}(:#{name})" : "#{kind}(:#{name}, #{kwargs.join(', ')})"
       end
 

@@ -100,7 +100,7 @@ class SemaNegativeTests < Plod::TestCase
   def test_return_type_mismatch
     diag = check(<<~RUBY)
       Device(:D) {
-        Method(:m, ret: B8()) {
+        Method(:m, Ret: B8()) {
           Return 1000
         }
       }
@@ -111,7 +111,7 @@ class SemaNegativeTests < Plod::TestCase
   def test_ro_register_with_write
     diag = check(<<~RUBY)
       Device(:D) {
-        Register(:r, size: 0x1, offset: 0x0, type: :ro) {
+        Register(:r, Size: 0x1, Offset: 0x0, Type: :ro) {
           Method(:write, data: B8()) {
             this[] = data
           }
@@ -124,8 +124,8 @@ class SemaNegativeTests < Plod::TestCase
   def test_wo_register_with_read
     diag = check(<<~RUBY)
       Device(:D) {
-        Register(:r, size: 0x1, offset: 0x0, type: :wo) {
-          Method(:read, ret: B8()) {
+        Register(:r, Size: 0x1, Offset: 0x0, Type: :wo) {
+          Method(:read, Ret: B8()) {
             Return this
           }
         }
@@ -137,8 +137,8 @@ class SemaNegativeTests < Plod::TestCase
   def test_read_wrong_return_type
     diag = check(<<~RUBY)
       Device(:D) {
-        Register(:r, size: 0x2, offset: 0x0) {
-          Method(:read, ret: B8()) {
+        Register(:r, Size: 0x2, Offset: 0x0) {
+          Method(:read, Ret: B8()) {
             Return this
           }
         }
@@ -150,7 +150,7 @@ class SemaNegativeTests < Plod::TestCase
   def test_field_exceeds_register_width
     diag = check(<<~RUBY)
       Device(:D) {
-        Register(:r, size: 0x1, offset: 0x0) {
+        Register(:r, Size: 0x1, Offset: 0x0) {
           Field :big, [0x0, 0x8]
         }
       }
@@ -161,7 +161,7 @@ class SemaNegativeTests < Plod::TestCase
   def test_overlapping_fields
     diag = check(<<~RUBY)
       Device(:D) {
-        Register(:r, size: 0x2, offset: 0x0) {
+        Register(:r, Size: 0x2, Offset: 0x0) {
           Field :a, [0x0, 0x4]
           Field :b, [0x3, 0x8]
         }
@@ -182,8 +182,8 @@ class SemaNegativeTests < Plod::TestCase
   def test_register_offset_overlap_warns_without_enable_if
     diag = check(<<~RUBY)
       Device(:D) {
-        Register(:a, size: 0x4, offset: 0x0) {}
-        Register(:b, size: 0x4, offset: 0x2) {}
+        Register(:a, Size: 0x4, Offset: 0x0) {}
+        Register(:b, Size: 0x4, Offset: 0x2) {}
       }
     RUBY
     assert diag.to_s.include?('overlap; dispatch order decides')
@@ -192,14 +192,14 @@ class SemaNegativeTests < Plod::TestCase
   def test_register_offset_overlap_silent_with_enable_if
     diag = check(<<~RUBY)
       Device(:D) {
-        Register(:lcr, size: 0x1, offset: 0x3) {
+        Register(:lcr, Size: 0x1, Offset: 0x3) {
           Field :dlab, 0x7
         }
-        Register(:a, size: 0x1, offset: 0x0) {
-          enableIf { lcr.dlab == 0 }
+        Register(:a, Size: 0x1, Offset: 0x0) {
+          EnableIf { lcr.dlab == 0 }
         }
-        Register(:b, size: 0x1, offset: 0x0) {
-          enableIf { lcr.dlab == 1 }
+        Register(:b, Size: 0x1, Offset: 0x0) {
+          EnableIf { lcr.dlab == 1 }
         }
       }
     RUBY
@@ -209,8 +209,8 @@ class SemaNegativeTests < Plod::TestCase
   def test_ro_and_wo_overlap_is_fine
     diag = check(<<~RUBY)
       Device(:D) {
-        Register(:a, size: 0x1, offset: 0x0, type: :ro) {}
-        Register(:b, size: 0x1, offset: 0x0, type: :wo) {}
+        Register(:a, Size: 0x1, Offset: 0x0, Type: :ro) {}
+        Register(:b, Size: 0x1, Offset: 0x0, Type: :wo) {}
       }
     RUBY
     refute diag.to_s.include?('overlap')
@@ -219,7 +219,7 @@ class SemaNegativeTests < Plod::TestCase
   def test_unknown_register_field_access
     diag = check(<<~RUBY)
       Device(:D) {
-        Register(:r, size: 0x1, offset: 0x0) {
+        Register(:r, Size: 0x1, Offset: 0x0) {
           Field :lo, 0x0
         }
         Method(:m) {

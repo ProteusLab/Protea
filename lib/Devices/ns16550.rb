@@ -11,7 +11,7 @@ Struct(:fifo8) {
     size[] = size + 1
   }
 
-  Method(:pop, ret: B8()) {
+  Method(:pop, Ret: B8()) {
     Var :valToRet, B8()
 
     valToRet[] = buf.get(front)
@@ -20,7 +20,7 @@ Struct(:fifo8) {
     Return valToRet
   }
 
-  Method(:is_empty, ret: B1()) {
+  Method(:is_empty, Ret: B1()) {
     Let :empty, B1(), size == 0
     Return empty
   }
@@ -32,12 +32,12 @@ Struct(:fifo8) {
 
 Device(:ns16550) {
   Register(:rbr) {
-    size 0x1
-    offset 0x0
-    type :ro
-    enableIf { lcr.dlab == 0 }
+    Size 0x1
+    Offset 0x0
+    Type :ro
+    EnableIf { lcr.dlab == 0 }
 
-    Method(:read, ret: B8()) {
+    Method(:read, Ret: B8()) {
       Let :ret_val, B8(), 0
 
       If(fcr.fe) {
@@ -67,25 +67,25 @@ Device(:ns16550) {
   }
 
   Register(:thr) {
-    size 0x1
-    offset 0x0
-    type :wo
-    enableIf { lcr.dlab == 0 }
+    Size 0x1
+    Offset 0x0
+    Type :wo
+    EnableIf { lcr.dlab == 0 }
   }
 
   Register(:ier) {
-    size 0x1
-    offset 0x1
-    enableIf { lcr.dlab == 0 }
+    Size 0x1
+    Offset 0x1
+    EnableIf { lcr.dlab == 0 }
   }
 
   Register(:iir) {
-    size 0x1
-    offset 0x2
-    type :ro
+    Size 0x1
+    Offset 0x2
+    Type :ro
     Field :iid, 0x1, 0x3
 
-    Method(:read, ret: B8()) {
+    Method(:read, Ret: B8()) {
       If(iid == 0x2) {
       }
 
@@ -94,50 +94,50 @@ Device(:ns16550) {
   }
 
   Register(:fcr) {
-    size 0x1
-    offset 0x2
-    type :wo
+    Size 0x1
+    Offset 0x2
+    Type :wo
     Field :fe, 0x0
   }
 
   Register(:lcr) {
-    size 0x1
-    offset 0x3
+    Size 0x1
+    Offset 0x3
     Field :dlab, 0x7
   }
 
   Register(:mcr) {
-    size 0x1
-    offset 0x4
+    Size 0x1
+    Offset 0x4
   }
 
   Register(:lsr) {
-    size 0x1
-    offset 0x5
+    Size 0x1
+    Offset 0x5
     Field :dr, 0x0
     Field :bi, 0x4
   }
 
   Register(:msr) {
-    size 0x1
-    offset 0x6
+    Size 0x1
+    Offset 0x6
   }
 
   Register(:scr) {
-    size 0x1
-    offset 0x7
+    Size 0x1
+    Offset 0x7
   }
 
   Register(:dll) {
-    size 0x1
-    offset 0x0
-    enableIf { lcr.dlab == 1 }
+    Size 0x1
+    Offset 0x0
+    EnableIf { lcr.dlab == 1 }
   }
 
   Register(:dlm) {
-    size 0x1
-    offset 0x1
-    enableIf { lcr.dlab == 1 }
+    Size 0x1
+    Offset 0x1
+    EnableIf { lcr.dlab == 1 }
   }
 
   Field(:mFifo, fifo8)

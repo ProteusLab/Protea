@@ -14,7 +14,7 @@ module Plod
     end
 
     def process_signature(args, what)
-      ret_type = args.delete(:ret)
+      ret_type = args.delete(:Ret)
       expect_type!(ret_type, "return type of #{what}") unless ret_type.nil?
       processed = args.map do |name, type|
         expect_type!(type, "argument #{name} of #{what}")
@@ -90,19 +90,19 @@ module Plod
       symbol
     end
 
-    def size(value)
+    def Size(value)
       @decl.size = value
     end
 
-    def offset(value)
+    def Offset(value)
       @decl.offset = value
     end
 
-    def type(value)
+    def Type(value)
       @decl.access = self.class.normalize_access(value)
     end
 
-    def seqn(value)
+    def Seqn(value)
       @decl.seqn = value
     end
 
@@ -123,7 +123,7 @@ module Plod
       nil
     end
 
-    def enableIf(&block)
+    def EnableIf(&block)
       @enable_if_proc = block
       nil
     end
@@ -200,8 +200,19 @@ module Plod
       @ctor_proc = nil
     end
 
-    def Register(name, size: nil, offset: nil, type: :rw, seqn: nil, &block)
+    def Register(name, **kwargs, &block)
       check_dup(@decl.registers.map(&:name), name, 'register')
+      size = kwargs.delete(:Size)
+      offset = kwargs.delete(:Offset)
+      type = kwargs.delete(:Type) || :rw
+      seqn = kwargs.delete(:Seqn)
+      unless kwargs.empty?
+        raise Plod::Error.new(
+          "unknown register propert#{kwargs.size == 1 ? 'y' : 'ies'}: " \
+          "#{kwargs.keys.join(', ')} (use Size:, Offset:, Type:, Seqn:)", Loc.capture
+        )
+      end
+
       reg_ctx = RegisterDeclContext.new(@frontend, name, { size: size, offset: offset, type: type, seqn: seqn })
       reg_ctx.instance_eval(&block) if block
       @decl.registers << reg_ctx.decl

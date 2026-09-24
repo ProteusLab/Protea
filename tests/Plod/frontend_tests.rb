@@ -73,7 +73,7 @@ class FrontendSmokeTests < Plod::TestCase
   def test_if_else_structure
     fe = Plod::Frontend.load_source(<<~RUBY, 'test.rb')
       AbstractStruct(:E) {
-        Method(:scheduled, ret: Bool())
+        Method(:scheduled, Ret: Bool())
       }
 
       Device(:D) {
@@ -105,13 +105,13 @@ class FrontendSmokeTests < Plod::TestCase
   def test_value_call_not_duplicated_as_statement
     fe = Plod::Frontend.load_source(<<~RUBY, 'test.rb')
       AbstractStruct(:Dev) {
-        Method(:readData, ret: B8())
+        Method(:readData, Ret: B8())
       }
 
       Device(:D) {
         AbstractField(:device, Ptr(Dev()))
 
-        Method(:m, ret: B8()) {
+        Method(:m, Ret: B8()) {
           Let :data, B8(), device.readData()
           Return data
         }
@@ -161,7 +161,7 @@ class FrontendSmokeTests < Plod::TestCase
   def test_register_self_and_fields
     fe = Plod::Frontend.load_source(<<~RUBY, 'test.rb')
       Device(:D) {
-        Register(:r, size: 0x1, offset: 0x0) {
+        Register(:r, Size: 0x1, Offset: 0x0) {
           Field :lo, 0x0
           Field :hi, 0x7
 
@@ -186,8 +186,8 @@ class FrontendSmokeTests < Plod::TestCase
   def test_seq_register_elem_access
     fe = Plod::Frontend.load_source(<<~RUBY, 'test.rb')
       Device(:D) {
-        Register(:bank, size: 0x4, offset: 0x0, seqn: 0x100) {
-          Method(:read, cid: Int(), ret: B32()) {
+        Register(:bank, Size: 0x4, Offset: 0x0, Seqn: 0x100) {
+          Method(:read, cid: Int(), Ret: B32()) {
             Return bank.at(cid)
           }
           Method(:write, data: B32(), cid: Int()) {

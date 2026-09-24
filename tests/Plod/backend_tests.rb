@@ -90,7 +90,7 @@ class BackendCppTests < Plod::TestCase
 
   def test_enable_if_guards_dispatch
     header = build(:Uart8250)
-    assert_includes header, '&& ((protea::_extract(lcr, 7, 1) == 0))', 'enableIf predicate missing from dispatch'
+    assert_includes header, '&& ((protea::_extract(lcr, 7, 1) == 0))', 'EnableIf predicate missing from dispatch'
   end
 
   def test_sequential_register_dispatch_uses_cid

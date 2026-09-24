@@ -56,10 +56,10 @@ class TranslatorTests < Plod::TestCase
       }
     PLD
     ruby = Plod::Pld::Translator.translate(src, 't.pld')
-    assert_includes ruby, 'AbstractStruct(:E) do'
-    assert_includes ruby, 'Method(:scheduled, ret: Bool())'
+    assert_includes ruby, 'AbstractStruct(:E) {'
+    assert_includes ruby, 'Method(:scheduled, Ret: Bool())'
     assert_includes ruby, 'Const(:ready, B8(), 0x1)'
-    assert_includes ruby, 'Register(:ctrl, size: 0x1, offset: 0x0, type: :rw)'
+    assert_includes ruby, 'Register(:ctrl, Size: 0x1, Offset: 0x0, Type: :rw)'
     assert_includes ruby, 'Field :en, 0x0'
     assert_includes ruby, 'Field :res, [0x1, 0x3]'
     assert_includes ruby, 'this[] = 0'
@@ -124,9 +124,9 @@ class TranslatorTests < Plod::TestCase
       }
     PLD
     ruby = Plod::Pld::Translator.translate(src, 't.pld')
-    assert_includes ruby, 'If(x == 1) do'
-    assert_includes ruby, 'Elseif(x == 3) do'
-    assert_includes ruby, 'Else do'
+    assert_includes ruby, 'If(x == 1) {'
+    assert_includes ruby, 'Elseif(x == 3) {'
+    assert_includes ruby, 'Else {'
 
     fe = Plod::Frontend.load_source(ruby, 't.rb')
     assert_empty fe.diag.to_s

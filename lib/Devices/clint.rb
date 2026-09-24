@@ -6,12 +6,12 @@ AbstractStruct(:BaseCPU) {
 }
 
 AbstractStruct(:ThreadContext) {
-  Method(:getCpuPtr, ret: Ptr(BaseCPU()))
-  Method(:threadId, ret: Int())
+  Method(:getCpuPtr, Ret: Ptr(BaseCPU()))
+  Method(:threadId, Ret: Int())
 }
 
 AbstractStruct(:Threads) {
-  Method(:at, id: Int(), ret: Ptr(ThreadContext()))
+  Method(:at, id: Int(), Ret: Ptr(ThreadContext()))
 }
 
 AbstractStruct(:System) {
@@ -74,7 +74,7 @@ Device(:Clint) {
       mtime[] = mtime + 1
     }
 
-    For(iter: :cid, init: 0x0, to: nThread) {
+    For(Iter: :cid, Init: 0x0, To: nThread) {
       Let :tc, Ptr(ThreadContext()), system.threads.at(cid)
       Let :mtimecmpv, B64(), mtimecmp.at(cid)
 
@@ -89,7 +89,7 @@ Device(:Clint) {
 
   Method(:reg_init) {
     mtime[] = 0
-    For(iter: :cid, init: 0x0, to: 0x1000) {
+    For(Iter: :cid, Init: 0x0, To: 0x1000) {
       msip.set(cid, 0)
       mtimecmp.set(cid, resetValue)
     }
@@ -97,7 +97,7 @@ Device(:Clint) {
 
   Method(:doReset) {
     mtime[] = 0
-    For(iter: :cid, init: 0x0, to: 0x1000) {
+    For(Iter: :cid, Init: 0x0, To: 0x1000) {
       If(resetMtimecmp) {
         mtimecmp.set(cid, resetValue)
       }
@@ -108,7 +108,7 @@ Device(:Clint) {
     raiseInterruptPin(int_reset)
   }
 
-  Register(:msip, size: 0x4, offset: 0x0, seqn: 0x1000) {
+  Register(:msip, Size: 0x4, Offset: 0x0, Seqn: 0x1000) {
     Field :msipb, 0x0
 
     Method(:write, data: B32(), cid: Int()) {
@@ -116,7 +116,7 @@ Device(:Clint) {
       update(cid)
     }
 
-    Method(:read, cid: Int(), ret: B32()) {
+    Method(:read, cid: Int(), Ret: B32()) {
       Return msip.at(cid)
     }
 
@@ -132,17 +132,17 @@ Device(:Clint) {
     }
   }
 
-  Register(:mtimecmp, size: 0x8, offset: 0x4000, seqn: 0x1000) {
+  Register(:mtimecmp, Size: 0x8, Offset: 0x4000, Seqn: 0x1000) {
     Field :msipb, 0x0
 
     Method(:write, data: B64(), cid: Int()) {
       mtimecmp.set(cid, data)
     }
 
-    Method(:read, cid: Int(), ret: B64()) {
+    Method(:read, cid: Int(), Ret: B64()) {
       Return mtimecmp.at(cid)
     }
   }
 
-  Register(:mtime, size: 0x8, offset: 0xbff8) {}
+  Register(:mtime, Size: 0x8, Offset: 0xbff8) {}
 }

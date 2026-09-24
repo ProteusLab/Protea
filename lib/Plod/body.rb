@@ -383,7 +383,15 @@ module Plod
       nil
     end
 
-    def For(iter:, init:, to:, &block)
+    def For(**kwargs, &block)
+      iter = kwargs.delete(:Iter)
+      init = kwargs.delete(:Init)
+      to = kwargs.delete(:To)
+      unless kwargs.empty?
+        raise Plod::Error.new("unknown For argument(s): #{kwargs.keys.join(', ')} (use Iter:, Init:, To:)", loc)
+      end
+      raise Plod::Error.new('For requires Iter:, Init: and To:', loc) if iter.nil? || init.nil? || to.nil?
+
       from_e = value_expr(init)
       to_e = value_expr(to)
       consume(from_e)
