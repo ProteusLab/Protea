@@ -46,7 +46,10 @@ class FrontendSmokeTests < Plod::TestCase
 
     msip = device.registers.find { |r| r.name == :msip }
     assert_equal 0x1000, msip.seqn
-    assert_equal 3, msip.methods.size
+    assert_equal %i[write update], msip.methods.map(&:name)
+
+    mtimecmp = device.registers.find { |r| r.name == :mtimecmp }
+    assert_empty mtimecmp.methods
 
     do_reset = device.methods.find { |m| m.name == :doReset }
     for_stmt = do_reset.body.find { |s| s.kind == :for }
@@ -187,11 +190,11 @@ class FrontendSmokeTests < Plod::TestCase
     fe = Plod::Frontend.load_source(<<~RUBY, 'test.rb')
       Device(:D) {
         Register(:bank, Size: 0x4, Offset: 0x0, Seqn: 0x100) {
-          Method(:read, cid: Int(), Ret: B32()) {
-            Return bank.at(cid)
+          Method(:read, Ret: B32()) {
+            Return Self
           }
-          Method(:write, data: B32(), cid: Int()) {
-            bank.set(cid, data)
+          Method(:write, data: B32()) {
+            Self[] = data
           }
         }
       }
@@ -199,9 +202,113 @@ class FrontendSmokeTests < Plod::TestCase
     assert_empty fe.diag.to_s
     reg = fe.program.devices.first.registers.first
     read = reg.methods.find { |m| m.name == :read }
+    assert_equal :return, read.body.first.kind
     assert_equal :getelem, read.body.first.value.kind
+    assert_equal :self, read.body.first.value.container.kind
+    assert_equal :selfindex, read.body.first.value.index.kind
+    assert_equal 32, read.body.first.value.type.size
     write = reg.methods.find { |m| m.name == :write }
-    assert_equal :setelem, write.body.first.kind
+    assert_equal :assign, write.body.first.kind
+    assert_equal :getelem, write.body.first.target.kind
+    assert_equal :self, write.body.first.target.container.kind
+    assert_equal :selfindex, write.body.first.target.index.kind
+  end
+
+  def test_seq_register_explicit_index_still_works
+    fe = Plod::Frontend.load_source(<<~RUBY, 'test.rb')
+      Device(:D) {
+        Register(:bank, Size: 0x4, Offset: 0x0, Seqn: 0x100) {
+          Method(:read, Ret: B32()) {
+            Let :v, B32(), bank.at(cid)
+            Return v
+          }
+        }
+      }
+    RUBY
+    assert_empty fe.diag.to_s
+    reg = fe.program.devices.first.registers.first
+    read = reg.methods.find { |m| m.name == :read }
+    assign = read.body.find { |s| s.kind == :assign }
+    assert_equal :getelem, assign.value.kind
+    assert_equal :var, assign.value.container.kind
+    assert_equal :bank, assign.value.container.name
+  end
+
+  def test_seq_register_sibling_call_forwards_index
+    fe = Plod::Frontend.load_source(<<~RUBY, 'test.rb')
+      Device(:D) {
+        Register(:bank, Size: 0x4, Offset: 0x0, Seqn: 0x100) {
+          Method(:touch) {
+            Self[] = 1
+          }
+          Method(:write, data: B32()) {
+            Self[] = data
+            touch()
+          }
+        }
+      }
+    RUBY
+    assert_empty fe.diag.to_s
+    reg = fe.program.devices.first.registers.first
+    write = reg.methods.find { |m| m.name == :write }
+    call = write.body.find { |s| s.kind == :exprstmt }
+    assert_equal :mcall, call.expr.kind
+    assert_equal 1, call.expr.args.size
+    assert_equal :selfindex, call.expr.args.first.kind
+  end
+
+  def test_seq_register_rejects_explicit_cid_arg
+    fe = Plod::Frontend.load_source(<<~RUBY, 'test.rb')
+      Device(:D) {
+        Register(:bank, Size: 0x4, Offset: 0x0, Seqn: 0x100) {
+          Method(:read, cid: Int(), Ret: B32()) {
+            Return bank.at(cid)
+          }
+        }
+      }
+    RUBY
+    assert fe.diag.error?
+    assert_match(/'cid' is the implicit bank index/, fe.diag.to_s)
+  end
+
+  def test_self_outside_banked_register
+    fe = Plod::Frontend.load_source(<<~RUBY, 'test.rb')
+      Device(:D) {
+        Register(:r, Size: 0x1, Offset: 0x0) {
+          Method(:write, data: B8()) {
+            Self[] = data
+          }
+        }
+      }
+    RUBY
+    assert fe.diag.error?
+    assert_match(/Self is only available inside methods of a banked/, fe.diag.to_s)
+  end
+
+  def test_self_in_device_method
+    fe = Plod::Frontend.load_source(<<~RUBY, 'test.rb')
+      Device(:D) {
+        Method(:m) {
+          Self[] = 1
+        }
+      }
+    RUBY
+    assert fe.diag.error?
+    assert_match(/Self is only available inside methods of a banked/, fe.diag.to_s)
+  end
+
+  def test_this_is_whole_bank_in_banked_register
+    fe = Plod::Frontend.load_source(<<~RUBY, 'test.rb')
+      Device(:D) {
+        Register(:bank, Size: 0x4, Offset: 0x0, Seqn: 0x100) {
+          Method(:write, data: B32()) {
+            this[] = data
+          }
+        }
+      }
+    RUBY
+    assert fe.diag.error?
+    assert_match(/'this' is the whole bank/, fe.diag.to_s)
   end
 
   def test_program_ir_yaml_round_trip
@@ -212,11 +319,14 @@ class FrontendSmokeTests < Plod::TestCase
     assert_equal 3, restored.devices.first.registers.size
     msip = restored.devices.first.registers.find { |r| r.name == :msip }
     assert_equal 0x1000, msip.seqn
-    assert_equal 3, msip.methods.size
+    assert_equal %i[write update], msip.methods.map(&:name)
     write = msip.methods.find { |m| m.name == :write }
-    assert_equal :setelem, write.body.first.kind
-    raise_stmt = msip.methods.find { |m| m.name == :read }.body.first
-    assert_equal :return, raise_stmt.kind
-    assert_equal :getelem, raise_stmt.value.kind
+    assert_equal :assign, write.body.first.kind
+    assert_equal :getelem, write.body.first.target.kind
+    update = msip.methods.find { |m| m.name == :update }
+    if_stmt = update.body.find { |s| s.kind == :if }
+    assert_equal :getelem, if_stmt.cond.kind
+    assert_equal :self, if_stmt.cond.container.kind
+    assert_equal :selfindex, if_stmt.cond.index.kind
   end
 end

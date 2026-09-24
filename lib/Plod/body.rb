@@ -149,16 +149,76 @@ module Plod
     end
   end
 
+  class SelfProxy
+    def elem
+      ctx = BodyContext.current
+      raise Plod::Error.new('Self used outside of any evaluated body', Loc.capture) if ctx.nil?
+
+      ctx.self_elem_expr
+    end
+
+    Expr::BINOPS.each do |ruby_op, ir_op|
+      define_method(ruby_op) do |other|
+        e = elem
+        e.ctx.binop(ir_op, e, other)
+      end
+    end
+
+    def ~
+      e = elem
+      e.ctx.unop(:not, e)
+    end
+
+    def [](*)
+      raise Plod::Error.new('Self denotes a single element and cannot be indexed', Loc.capture)
+    end
+
+    def []=(*args)
+      raise Plod::Error.new('Self denotes a single element; use Self[] = value', Loc.capture) if args.size != 1
+
+      e = elem
+      e.ctx.assign(e, args.first)
+    end
+
+    def method_missing(name, *)
+      raise Plod::Error.new("unknown operation 'Self.#{name}' on a banked register element", Loc.capture)
+    end
+
+    def respond_to_missing?(*)
+      true
+    end
+  end
+
+  Self = SelfProxy.new
+
   class BodyContext < Slate
     include Types::Sugar
     include Types::BitSugar
 
-    def initialize(frontend, env)
+    @current = nil
+    class << self
+      attr_accessor :current
+
+      def focus(ctx)
+        previous = @current
+        @current = ctx
+        yield
+      ensure
+        @current = previous
+      end
+    end
+
+    def initialize(frontend, env, banked: nil)
       @frontend = frontend
       @env = env
       @stmts = []
       @provisional = {}.compare_by_identity
       @open_if = nil
+      @banked = banked
+    end
+
+    def focus_eval(&)
+      BodyContext.focus(self) { instance_eval(&) }
     end
 
     def loc = Loc.capture
@@ -220,13 +280,42 @@ module Plod
                                          type: Types::Field.new(field.size), loc: loc))
     end
 
-    def reg_method_expr(reg_expr, _reg, method_decl, args)
+    def reg_method_expr(reg_expr, reg, method_decl, args)
       arg_exprs = args.map { |a| consume_value(a) }
       node = IR::MethodCall.new(
         recv: reg_expr.node, name: method_decl.name,
-        args: arg_exprs.map(&:node), ret_type: method_decl.ret_type, loc: loc
+        args: bank_call_args(reg, method_decl, arg_exprs.map(&:node)),
+        ret_type: method_decl.ret_type, loc: loc
       )
       provisional(node)
+    end
+
+    def self_elem_expr
+      raise Plod::Error.new('Self is only available inside methods of a banked (seqn) register', loc) unless @banked
+
+      this_ref = @env.lookup(:__this__)&.payload
+      Expr.new(self, IR::GetElem.new(
+                       container: this_ref,
+                       index: IR::SelfIndex.new(type: Types::Int.new, loc: loc),
+                       type: Types::Bits.new(@banked.size * 8),
+                       loc: loc
+                     ))
+    end
+
+    def bank_call_args(reg, method_decl, arg_nodes)
+      return arg_nodes if reg.nil? || !reg.equal?(@banked)
+
+      case arg_nodes.size - method_decl.args.size
+      when 0
+        arg_nodes + [IR::SelfIndex.new(type: Types::Int.new, loc: loc)]
+      when 1
+        arg_nodes
+      else
+        raise Plod::Error.new(
+          "method '#{method_decl.name}' of banked register #{reg.name} expects " \
+          "#{method_decl.args.size} arguments plus the bank index", loc
+        )
+      end
     end
 
     def enum_val_expr(enum, key)
@@ -324,6 +413,7 @@ module Plod
     def value_expr(value)
       case value
       when Expr then value
+      when SelfProxy then self_elem_expr
       when Integer then Expr.new(self, IR::Const.new(value: value, type: Types::Int.new, loc: loc))
       when String then Expr.new(self, IR::Const.new(value: value, type: Types::Str.new, loc: loc))
       when Struct then Expr.new(self, value)
@@ -398,8 +488,8 @@ module Plod
       consume(to_e)
       iter_env = Env.new(@env)
       iter_env.define(iter, Binding.new(:var, nil, type: Types::Int.new))
-      body = BodyContext.new(@frontend, iter_env)
-      body.instance_eval(&block) if block
+      body = BodyContext.new(@frontend, iter_env, banked: @banked)
+      body.focus_eval(&block) if block
       node = IR::For.new(iter: iter, from: from_e.node, to: to_e.node, body: body.final_stmts, loc: loc)
       emit(node)
       nil
@@ -425,6 +515,12 @@ module Plod
     end
 
     def this
+      if @banked
+        raise Plod::Error.new(
+          "'this' is the whole bank inside a banked register; use Self for the addressed element", loc
+        )
+      end
+
       binding = @env.lookup(:__this__)
       return ErrorExpr.new(self) if binding.nil?
 
@@ -432,8 +528,8 @@ module Plod
     end
 
     def sub_body(block)
-      body = BodyContext.new(@frontend, Env.new(@env))
-      body.instance_eval(&block) if block
+      body = BodyContext.new(@frontend, Env.new(@env), banked: @banked)
+      body.focus_eval(&block) if block
       body
     end
 
@@ -468,7 +564,8 @@ module Plod
           recv = IR::SelfRef.new(subject: :register, type: nil, loc: loc)
           node = IR::MethodCall.new(
             recv: recv, name: name,
-            args: arg_exprs.map(&:node), ret_type: method_decl.ret_type, loc: loc
+            args: bank_call_args(@banked, method_decl, arg_exprs.map(&:node)),
+            ret_type: method_decl.ret_type, loc: loc
           )
           return provisional(node)
         end

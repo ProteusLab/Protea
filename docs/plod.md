@@ -38,18 +38,25 @@ A file is a sequence of top-level declarations:
 
 Inside a device:
 
-- `Register(:name, size:, offset:, type:, seqn:) { ... }` — a bank register. `size` is in bytes, `offset` in bytes from the bank base, `type` is `:ro`, `:wo` or `:rw` (default), `seqn` declares an arrayed bank (`name.at(i)` / `name.set(i, v)`).
+- `Register(:name, Size:, Offset:, Type:, Seqn:) { ... }` — a bank register. `Size` is in bytes, `Offset` in bytes from the bank base, `Type` is `:ro`, `:wo` or `:rw` (default), `Seqn` declares an arrayed bank. The properties can also be declared inside the block as statements: `Size 0x1`, `Offset 0x0`, `Type :ro`, `Seqn 0x100`. Outside the register, `name.at(i)` / `name.set(i, v)` address element `i`, and calling one of its methods (`name.m(i, ...)`) takes the element index as the last argument.
 - `Field(:name, Type, *init)` / `AbstractField(:name, Type)` — device state members; abstract fields are provided by the environment.
 - `Const(:name, Type, value)`, `Enum(:name) { A(0) ... }`.
-- `Method(:name, arg: Type, ..., ret: Type) { ... }` and `AbstractMethod` for environment calls.
+- `Method(:name, arg: Type, ..., Ret: Type) { ... }` and `AbstractMethod` for environment calls.
 - `Constructor(params: Ref(Params())) { Init(:field, expr) ... Body { ... } }`.
 - `Lambda(arg: Type, ...) { ... }` — anonymous callbacks, usable as field initializers.
 
 Inside a register:
 
 - `Field :name, lsb` or `Field :name, [lo, hi]` — bit fields (a `lo..hi` range also works).
-- `enableIf { lcr.dlab == 0 }` — dispatch predicate.
-- `Method(:read, ret: B8()) { ... }` / `Method(:write, data: B8()) { ... }` — access semantics. If omitted, a default is generated. The checker enforces: no `write` on `:ro`, no `read` on `:wo`, `read` returns the register width, `write` takes `data` of the register width.
+- `EnableIf { lcr.dlab == 0 }` — dispatch predicate.
+- `Method(:read, Ret: B8()) { ... }` / `Method(:write, data: B8()) { ... }` — access semantics. `Ret:` is reserved (as are `Size:`, `Offset:`, `Type:`, `Seqn:`, `Iter:`, `Init:`, `To:`); user-declared names (`data:` here) start lowercase. A trivial full-element access needs no explicit method: if `read`/`write` is omitted, an implicit implementation is generated — for a banked register `name_read` returns `name[cid]` and `name_write(data)` performs `name[cid] = data`, for a scalar register the same without indexing. Only non-trivial semantics (masking, side effects, field packing) require an explicit `Method`. The checker enforces: no `write` on `:ro`, no `read` on `:wo`, `read` returns the register width, `write` takes `data` of the register width.
+
+Inside a `seqn` register, the bank index is implicit:
+
+- Methods must not declare an index parameter; the generated C++ signature gains a hidden trailing `uint64_t cid`.
+- `Self` denotes the addressed element (`Bits` of the register width): read it as a value (`Return Self`) and assign it with `Self[] = v`. It cannot be indexed.
+- Bare bit-field names (`msipb[] = 1`) act on the addressed element, and the raw index is available as the read-only binding `cid` (e.g. `system.threads.at(cid)`).
+- Calling a sibling method of the same register omits the index — it is forwarded automatically (`update()` inside `write`). `this` still denotes the whole bank and, as such, may not be read, assigned or called as a value inside a banked register's methods.
 
 ### Types
 
@@ -57,7 +64,7 @@ Inside a register:
 
 ### Bodies
 
-Statements: `Let :x, T, expr`, `Var :x, T`, `x[] = v` (assignment), `If(c) { }` with sibling `Elseif(c) { }` / `Else { }` blocks, `For(iter: :i, init: 0, to: n) { }`, `Return [expr]`, `Cast(T, v)`, `GetPtr(v)`.
+Statements: `Let :x, T, expr`, `Var :x, T`, `x[] = v` (assignment), `If(c) { }` with sibling `Elseif(c) { }` / `Else { }` blocks, `For(Iter: :i, Init: 0, To: n) { }`, `Return [expr]`, `Cast(T, v)`, `GetPtr(v)`.
 
 Expressions: arithmetic and bitwise operators, comparisons, `reg.field` bit access, `recv.method(args)`, `container.at(i)`, `container.set(i, v)`, `enum.KEY`, and calls to device methods and abstract functions.
 
@@ -101,6 +108,8 @@ device Uart8250 {
 
 Translation rules worth knowing:
 
+- The `.pld` keywords keep their C-like lowercase spelling (`device`, `register`, `field`, `enableIf`, `if`, `else`, `return`); the translator emits the PascalCase Ruby DSL (`Device`, `Register`, `Field`, `EnableIf`, `If`, ...).
+- Register props and return types map to capitalized kwargs: `size(0x1)` → `Size: 0x1`, `type(ro)` → `Type: :ro`, `b8 read()` → `Method(:read, Ret: B8())`.
 - `self` becomes `this`; compound assignments desugar (`status |= x` → `status[] = status | x`).
 - `&x` becomes `GetPtr(x)`; `static_cast<T>(e)` becomes `Cast(T(), e)`; `[]{ ... }` becomes a `Lambda`.
 - Enum references lower the enum name's first letter: `InterruptIds.Rx` → `interruptIds.Rx`.

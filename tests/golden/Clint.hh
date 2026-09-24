@@ -56,16 +56,12 @@ class Clint : public BasicPioDevice {
     uint64_t mtime = 0;
     
     
-    void msip_write(uint32_t data, int cid) {
+    void msip_write(uint32_t data, uint64_t cid) {
         msip[cid] = (data & 1);
         msip_update(cid);
     }
     
-    uint32_t msip_read(int cid) {
-        return msip[cid];
-    }
-    
-    void msip_update(int cid) {
+    void msip_update(uint64_t cid) {
         ThreadContext* tc;
         tc = system->threads[cid];
         if (msip[cid]) {
@@ -75,13 +71,11 @@ class Clint : public BasicPioDevice {
         }
     }
     
-    void mtimecmp_write(uint64_t data, int cid) {
-        mtimecmp[cid] = data;
-    }
+    uint32_t msip_read(uint64_t cid) { return msip[cid]; }
     
-    uint64_t mtimecmp_read(int cid) {
-        return mtimecmp[cid];
-    }
+    uint64_t mtimecmp_read(uint64_t cid) { return mtimecmp[cid]; }
+    
+    void mtimecmp_write(uint64_t data, uint64_t cid) { mtimecmp[cid] = data; }
     
     uint64_t mtime_read() { return mtime; }
     

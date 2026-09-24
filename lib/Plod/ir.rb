@@ -14,6 +14,7 @@ module Plod
     VarRef = node :name, :type, kind: :var
     Const = node :value, :type, kind: :const
     SelfRef = node :subject, :type, kind: :self
+    SelfIndex = node :type, kind: :selfindex
 
     BinOp = node :op, :lhs, :rhs, :type, kind: :binop
     UnOp = node :op, :operand, :type, kind: :unop
@@ -48,7 +49,7 @@ module Plod
     Program = node :path, :devices, :components, :objects, :functions, kind: :program
 
     KIND_TO_CLASS = {
-      var: VarRef, const: Const, self: SelfRef,
+      var: VarRef, const: Const, self: SelfRef, selfindex: SelfIndex,
       binop: BinOp, unop: UnOp, cast: Cast, regfield: RegFieldRef,
       getfield: GetField, getelem: GetElem, setelem: SetElem,
       enumval: GetEnumVal, getptr: GetPtr, mcall: MethodCall, call: Call,

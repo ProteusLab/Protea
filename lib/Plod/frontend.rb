@@ -166,7 +166,7 @@ module Plod
         body_env = Env.new(env)
         m.args.each { |n, t| body_env.define(n, Binding.new(:var, nil, type: t)) }
         ctx = BodyContext.new(self, body_env)
-        safely("method #{component.name}.#{m.name}") { ctx.instance_eval(&method_proc(m)) }
+        safely("method #{component.name}.#{m.name}") { ctx.focus_eval(&method_proc(m)) }
         m.body = ctx.final_stmts
       end
       # rubocop:enable Style/CombinableLoops
@@ -181,7 +181,7 @@ module Plod
         body_env = Env.new(device_env)
         m.args.each { |n, t| body_env.define(n, Binding.new(:var, nil, type: t)) }
         ctx = BodyContext.new(self, body_env)
-        safely("method #{device.name}.#{m.name}") { ctx.instance_eval(&method_proc(m)) }
+        safely("method #{device.name}.#{m.name}") { ctx.focus_eval(&method_proc(m)) }
         m.body = ctx.final_stmts
       end
 
@@ -191,7 +191,7 @@ module Plod
         body_env = Env.new(device_env)
         l.args.each { |n, t| body_env.define(n, Binding.new(:var, nil, type: t)) }
         ctx = BodyContext.new(self, body_env)
-        safely("lambda #{device.name}.#{l.name}") { ctx.instance_eval(&lambda_proc(l)) }
+        safely("lambda #{device.name}.#{l.name}") { ctx.focus_eval(&lambda_proc(l)) }
         l.body = ctx.final_stmts
       end
 
@@ -211,7 +211,12 @@ module Plod
 
     def eval_register(device, device_env, reg)
       reg_env = Env.new(device_env)
-      self_ref = IR::SelfRef.new(subject: :register, type: Types::Bits.new(reg.size * 8), loc: reg.loc)
+      storage_type = if reg.seqn
+                       Types::Array.new(Types::Bits.new(reg.size * 8), reg.seqn)
+                     else
+                       Types::Bits.new(reg.size * 8)
+                     end
+      self_ref = IR::SelfRef.new(subject: :register, type: storage_type, loc: reg.loc)
       reg.fields.each do |f|
         field_ref = IR::RegFieldRef.new(reg: self_ref, field: f.name, type: Types::Field.new(f.size), loc: f.loc)
         reg_env.define(f.name, Binding.new(:regfield, field_ref))
@@ -219,18 +224,20 @@ module Plod
       reg.methods.each { |m| reg_env.define(m.name, Binding.new(:regfn, [m])) }
       reg_env.define(:__this__, Binding.new(:self, self_ref))
 
+      banked = reg.seqn ? reg : nil
       reg.methods.each do |m|
         body_env = Env.new(reg_env)
+        body_env.define(:cid, Binding.new(:var, nil, type: Types::Int.new)) if reg.seqn
         m.args.each { |n, t| body_env.define(n, Binding.new(:var, nil, type: t)) }
-        ctx = BodyContext.new(self, body_env)
-        safely("method #{device.name}.#{reg.name}.#{m.name}") { ctx.instance_eval(&method_proc(m)) }
+        ctx = BodyContext.new(self, body_env, banked: banked)
+        safely("method #{device.name}.#{reg.name}.#{m.name}") { ctx.focus_eval(&method_proc(m)) }
         m.body = ctx.final_stmts
       end
 
       return if enable_if_proc(reg).nil?
 
       ctx = BodyContext.new(self, Env.new(reg_env))
-      result = safely("enableIf of #{device.name}.#{reg.name}") { ctx.instance_eval(&enable_if_proc(reg)) }
+      result = safely("enableIf of #{device.name}.#{reg.name}") { ctx.focus_eval(&enable_if_proc(reg)) }
       stmts = ctx.final_stmts
       if result.is_a?(Expr)
         reg.enable_if = result.node
@@ -250,7 +257,7 @@ module Plod
       ctor_env = Env.new(device_env)
       ctor.args.each { |n, t| ctor_env.define(n, Binding.new(:var, nil, type: t)) }
       ctx = CtorContext.new(self, ctor_env, ctor)
-      safely("constructor of #{device.name}") { ctx.instance_eval(&proc) }
+      safely("constructor of #{device.name}") { ctx.focus_eval(&proc) }
     end
 
     class FileContext < Slate

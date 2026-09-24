@@ -132,6 +132,12 @@ module Plod
       raise Plod::Error.new("register method '#{name}' requires a body", Loc.capture) if block.nil?
 
       args_list, ret_type = process_signature(args, "register method #{name}")
+      if @decl.seqn && args_list.any? { |n, _| n == :cid }
+        raise Plod::Error.new(
+          "banked register method '#{name}': 'cid' is the implicit bank index; remove the parameter " \
+          '(it is available inside the body, and Self denotes the addressed element)', Loc.capture
+        )
+      end
       decl_method = IR::MethodDecl.new(
         name: name.to_sym, args: args_list, ret_type: ret_type,
         body: [], abstract: false, loc: Loc.capture

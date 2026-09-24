@@ -277,8 +277,9 @@ module Plod
 
       def register_method(reg, m)
         ret = m.ret_type.nil? ? 'void' : cpp_type(m.ret_type)
-        args = m.args.map { |n, t| "#{cpp_type(t)} #{n}" }.join(', ')
-        line("#{ret} #{reg.name}_#{m.name}(#{args}) {")
+        args = m.args.map { |n, t| "#{cpp_type(t)} #{n}" }
+        args << 'uint64_t cid' if reg.seqn
+        line("#{ret} #{reg.name}_#{m.name}(#{args.join(', ')}) {")
         indent { m.body.each { |s| stmt(s) } }
         line('}')
       end
@@ -445,9 +446,9 @@ module Plod
         when :regfield
           reg = register_operand(target.reg)
           field = find_field(reg, target.field)
-          line("protea::_insert(#{reg.name}, #{field.lsb}, #{field.size}, #{expr(node.value)});")
+          line("protea::_insert(#{reg_target_name(target.reg)}, #{field.lsb}, #{field.size}, #{expr(node.value)});")
         when :self
-          line("#{register_operand(target).name} = #{expr(node.value)};")
+          line("#{reg_target_name(target)} = #{expr(node.value)};")
         else
           line("#{expr(target)} = #{expr(node.value)};")
         end
@@ -476,6 +477,13 @@ module Plod
         end
       end
 
+      def reg_target_name(node)
+        reg = register_operand(node)
+        return "#{reg.name}[cid]" if node.kind == :self && reg.seqn
+
+        reg.name
+      end
+
       def find_field(reg, field_name)
         reg.fields.find { |f| f.name == field_name }
       end
@@ -488,6 +496,8 @@ module Plod
           node.value.is_a?(String) ? "\"#{node.value}\"" : node.value.to_s
         when :self
           node.subject == :register ? @register.name : 'this'
+        when :selfindex
+          'cid'
         when :binop
           "(#{expr(node.lhs)} #{BINOPS[node.op]} #{expr(node.rhs)})"
         when :unop
@@ -497,7 +507,7 @@ module Plod
         when :regfield
           reg = register_operand(node.reg)
           field = find_field(reg, node.field)
-          "protea::_extract(#{reg.name}, #{field.lsb}, #{field.size})"
+          "protea::_extract(#{reg_target_name(node.reg)}, #{field.lsb}, #{field.size})"
         when :getfield
           op = ptr_recv?(node.recv) ? '->' : '.'
           "#{expr(node.recv)}#{op}#{node.name}"

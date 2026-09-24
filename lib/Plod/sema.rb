@@ -260,8 +260,13 @@ module Plod
 
     def reg_env(device, reg)
       env = device_env(device)
-      self_ref = Types::Bits.new(reg.size * 8)
+      self_ref = if reg.seqn
+                   Types::Array.new(Types::Bits.new(reg.size * 8), reg.seqn)
+                 else
+                   Types::Bits.new(reg.size * 8)
+                 end
       env[:__this__] = [:self, self_ref, :register]
+      env[:cid] = [:var, Types::Int.new] if reg.seqn
       reg.fields.each { |f| env[f.name] = [:regfield, Types::Field.new(f.size), [reg, f]] }
       reg.methods.each { |m| env[m.name] = [:regfn, m] }
       env
@@ -329,6 +334,10 @@ module Plod
     def elem_type(container_type, container, ctx)
       t = container_type
       return t.elem if t.is_a?(Types::Array)
+      if container.is_a?(Struct) && container.respond_to?(:kind) && container.kind == :getelem &&
+         container.container.kind == :self && ctx.register&.seqn
+        return Types::Bits.new(ctx.register.size * 8)
+      end
 
       binding = ctx.lookup(container.name) if container.kind == :var
       return Types::Bits.new(binding[2].size * 8) if binding && binding[0] == :reg && binding[2].seqn
@@ -386,7 +395,7 @@ module Plod
     end
 
     class TypeContext
-      attr_reader :method_decl, :device
+      attr_reader :method_decl, :device, :register
 
       def initialize(checker, env, method_decl, device: nil, register: nil)
         @checker = checker
@@ -460,6 +469,8 @@ module Plod
         when :self
           binding = lookup(:__this__)
           binding ? binding[1] : nil
+        when :selfindex
+          Types::Int.new
         when :binop
           binop_type(node)
         when :unop
@@ -617,14 +628,17 @@ module Plod
         target = recv_t.deref
 
         method_decl = nil
+        index_args = 0
         if node.recv.kind == :self && @register
           method_decl = @register.methods.find { |m| m.name == node.name }
+          index_args = @register.seqn ? 1 : 0
           @register
         elsif node.recv.kind == :var
           binding = lookup(node.recv.name)
           if binding && binding[0] == :reg
             reg = binding[1]
             method_decl = reg.methods.find { |m| m.name == node.name }
+            index_args = reg.seqn ? 1 : 0
           end
         end
         if method_decl.nil? && target.is_a?(Types::Named)
@@ -648,7 +662,7 @@ module Plod
           return nil
         end
 
-        check_call(node, method_decl)
+        check_call(node, method_decl, index_args)
         method_decl.ret_type
       end
 
@@ -665,7 +679,8 @@ module Plod
           return nil
         end
 
-        check_call(node, binding[1])
+        index_args = binding[0] == :regfn && @register&.seqn ? 1 : 0
+        check_call(node, binding[1], index_args)
         binding[1].ret_type
       end
 
@@ -673,23 +688,29 @@ module Plod
         args.each(&)
       end
 
-      def check_call(node, method_decl)
+      def check_call(node, method_decl, index_args = 0)
         expected = method_decl.args
-        if node.args.size != expected.size
-          expected_n = expected.size
+        total = expected.size + index_args
+        if node.args.size != total
           error("wrong number of arguments for '#{method_decl.name}': " \
-                "expected #{expected_n}, got #{node.args.size}", node)
+                "expected #{total}, got #{node.args.size}", node)
           return
         end
         node.args.each_with_index do |arg, i|
           actual = expr_type(arg)
-          expected_type = expected[i][1]
+          if i < expected.size
+            expected_type = expected[i][1]
+            arg_name = expected[i][0]
+          else
+            expected_type = Types::Int.new
+            arg_name = :index
+          end
           next if actual.nil? || expected_type.nil?
 
           next if @checker.send(:type_matches?, actual, expected_type)
 
           error(
-            "argument #{expected[i][0]} of '#{method_decl.name}' expects #{expected_type.name}, got #{actual.name}", arg
+            "argument #{arg_name} of '#{method_decl.name}' expects #{expected_type.name}, got #{actual.name}", arg
           )
         end
       end

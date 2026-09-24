@@ -108,6 +108,21 @@ class CoreIRTests < Plod::TestCase
     assert_equal 1, restored.body.length
   end
 
+  def test_self_element_round_trip
+    node = Plod::IR::GetElem.new(
+      container: Plod::IR::SelfRef.new(subject: :register, type: nil),
+      index: Plod::IR::SelfIndex.new(type: Plod::Types::Int.new, loc: Plod::Loc.new('dev.rb', 5)),
+      type: Plod::Types::Bits.new(32)
+    )
+    restored = Plod::IR.from_h(node.to_h)
+    assert_equal :getelem, restored.kind
+    assert_equal :self, restored.container.kind
+    assert_equal :register, restored.container.subject
+    assert_equal :selfindex, restored.index.kind
+    assert_equal Plod::Types::Int.new, restored.index.type
+    assert_equal Plod::Types::Bits.new(32), restored.type
+  end
+
   def test_register_decl_round_trip
     reg = Plod::IR::RegisterDecl.new(
       name: :msip,

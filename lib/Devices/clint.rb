@@ -111,19 +111,15 @@ Device(:Clint) {
   Register(:msip, Size: 0x4, Offset: 0x0, Seqn: 0x1000) {
     Field :msipb, 0x0
 
-    Method(:write, data: B32(), cid: Int()) {
-      msip.set(cid, data & 0x1)
-      update(cid)
+    Method(:write, data: B32()) {
+      Self[] = data & 0x1
+      update
     }
 
-    Method(:read, cid: Int(), Ret: B32()) {
-      Return msip.at(cid)
-    }
-
-    Method(:update, cid: Int()) {
+    Method(:update) {
       Let :tc, Ptr(ThreadContext()), system.threads.at(cid)
 
-      If(msip.at(cid)) {
+      If(Self) {
         tc.getCpuPtr.postInterrupt(tc.threadId, int_software_machine, 0)
       }
       Else {
@@ -134,14 +130,6 @@ Device(:Clint) {
 
   Register(:mtimecmp, Size: 0x8, Offset: 0x4000, Seqn: 0x1000) {
     Field :msipb, 0x0
-
-    Method(:write, data: B64(), cid: Int()) {
-      mtimecmp.set(cid, data)
-    }
-
-    Method(:read, cid: Int(), Ret: B64()) {
-      Return mtimecmp.at(cid)
-    }
   }
 
   Register(:mtime, Size: 0x8, Offset: 0xbff8) {}

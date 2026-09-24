@@ -189,6 +189,61 @@ class SemaNegativeTests < Plod::TestCase
     assert diag.to_s.include?('overlap; dispatch order decides')
   end
 
+  def test_banked_register_self_element_checks
+    diag = check(<<~RUBY)
+      Device(:D) {
+        Register(:bank, Size: 0x4, Offset: 0x0, Seqn: 0x10) {
+          Field :b, 0x0
+          Method(:poke) {
+            b[] = 1
+            Self[] = 5
+          }
+          Method(:write, data: B32()) {
+            Self[] = data
+            poke()
+          }
+        }
+        Method(:m, i: Int()) {
+          bank.poke(i)
+          bank.set(i, 7)
+        }
+      }
+    RUBY
+    assert_empty diag.errors.map(&:to_s), diag.to_s
+  end
+
+  def test_banked_register_device_call_requires_index
+    diag = check(<<~RUBY)
+      Device(:D) {
+        Register(:bank, Size: 0x4, Offset: 0x0, Seqn: 0x10) {
+          Method(:poke) {
+            Self[] = 1
+          }
+        }
+        Method(:m) {
+          bank.poke()
+        }
+      }
+    RUBY
+    assert diag.to_s.include?("wrong number of arguments for 'poke'")
+  end
+
+  def test_banked_register_device_call_index_must_be_numeric
+    diag = check(<<~RUBY)
+      Device(:D) {
+        Register(:bank, Size: 0x4, Offset: 0x0, Seqn: 0x10) {
+          Method(:poke) {
+            Self[] = 1
+          }
+        }
+        Method(:m, s: String()) {
+          bank.poke(s)
+        }
+      }
+    RUBY
+    assert diag.to_s.include?("argument index of 'poke' expects int, got str")
+  end
+
   def test_register_offset_overlap_silent_with_enable_if
     diag = check(<<~RUBY)
       Device(:D) {
