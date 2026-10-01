@@ -9,6 +9,7 @@ from lira.arch_utils import build_arch_index
 from Generic.instruction import Instruction
 from Generic.interface import InterfacesRegistry
 from Generic.builders import SemanticBuilder
+from Generic.nodes import WriteMem
 from Target.RISC_V.config import RiscvConfig
 
 
@@ -21,7 +22,7 @@ class Driver:
 
         self.insts = self.process_instrs(
             [insn for insn in self.arch.instructions
-             if insn.name in self.config.supported_instructions],
+             if insn.name not in self.config.excluded_instructions],
         )
 
         # The script is only launched from the gem5 repository root
@@ -33,6 +34,9 @@ class Driver:
         for i, insn in enumerate(insns):
             sem = SemanticBuilder(self.index, insn, self.interfaces)
             body = sem.build(insn.semantic)
+            env = self.config.implicit_env.get(insn.name)
+            if env is not None:
+                body.append(WriteMem(None, None, self.interfaces[env]))
             insts.append(Instruction(
                 i,
                 insn.name.upper(),

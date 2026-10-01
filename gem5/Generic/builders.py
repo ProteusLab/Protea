@@ -160,6 +160,10 @@ class SemanticBuilder(CodeBuilder):
     def _scan_env(self, stmt: Statement) -> None:
         interface = self.interfaces[stmt.specifier]
         if interface is not None and interface.has_mem:
+            if self.has_mem:
+                raise GenerationError(
+                    f"{self.insn.name}: multiple memory accesses are not supported"
+                )
             self.has_mem = True
 
     def _build_regs(self) -> None:
@@ -235,7 +239,7 @@ class SemanticBuilder(CodeBuilder):
 
             if not self.stmt.outputs:
                 addr = args[0] if len(args) > 1 else None
-                data = args[-1]
+                data = args[-1] if args else None
                 em.nodes.append(WriteMem(data, addr, interface))
                 return
 

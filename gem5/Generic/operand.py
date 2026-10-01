@@ -80,10 +80,20 @@ if (traceData) {{ traceData->setData(intRegClass, {value}); }}
 """
 
     @property
+    def reg_id(self) -> str:
+        rf = next(iter(self.index.rf.values()))
+        zero = [i for i, reg in enumerate(rf.regs) if "zero" in reg.attributes]
+        reg_id = f"intRegClass[{self.name}]"
+        if not zero:
+            return reg_id
+        cond = " || ".join(f"{self.name} == {i}" for i in zero)
+        return f"({cond}) ? RegId() : {reg_id}"
+
+    @property
     def set_src(self) -> str:
         if self.src_pos is None:
             return ""
-        return f"""setSrcRegIdx({self.src_pos}, intRegClass[{self.name}]);
+        return f"""setSrcRegIdx({self.src_pos}, {self.reg_id});
 _numSrcRegs++;
 """
 
@@ -91,7 +101,7 @@ _numSrcRegs++;
     def set_dst(self) -> str:
         if self.dst_pos is None:
             return ""
-        return f"""setDestRegIdx({self.dst_pos}, intRegClass[{self.name}]);
+        return f"""setDestRegIdx({self.dst_pos}, {self.reg_id});
 _numDestRegs++;
 """
 

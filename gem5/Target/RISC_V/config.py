@@ -3,7 +3,7 @@
 # and artifact generation.
 
 from pathlib import Path
-from typing import List, Set, Tuple
+from typing import Dict, List, Set, Tuple
 
 from Generic.config import IConfig
 from Generic.instruction import Instruction
@@ -20,11 +20,13 @@ class RiscvConfig(IConfig):
     @property
     def excluded_instructions(self) -> Set[str]:
         return {
-            "ecall",
-            "ebreak",
             "fence"
         }
-        pass
+
+    @property
+    def implicit_env(self) -> Dict[str, str]:
+        # ebreak has empty semantics in the ADL.
+        return {"ebreak": "breakPoint"}
 
     @property
     def decoder_isa(self) -> Path:

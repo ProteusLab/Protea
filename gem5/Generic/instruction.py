@@ -1,8 +1,8 @@
 # gem5/Generic/instruction.py
 
-from typing import List
+from typing import List, Optional, Union
 
-from .nodes import render_nodes
+from .nodes import ReadMem, WriteMem, node_def, node_uses, render_nodes
 from .operand import Register
 
 
@@ -28,6 +28,24 @@ class Instruction:
         self.has_mem: bool = has_mem
 
     @property
+    def mem_access(self) -> Optional[Union[ReadMem, WriteMem]]:
+        for node in self.sem:
+            if isinstance(node, (ReadMem, WriteMem)) and node.is_mem:
+                return node
+        return None
+
+    @property
+    def interfaces(self) -> List[object]:
+        return [n.interface for n in self.sem if isinstance(n, (ReadMem, WriteMem))]
+
+    @property
+    def op_class(self) -> str:
+        for interface in self.interfaces:
+            if interface.op_class is not None:
+                return interface.op_class
+        return "IntAluOp"
+
+    @property
     def memb_decls(self) -> str:
         code = ""
         for reg in self.regs:
@@ -47,6 +65,12 @@ RegId destRegIdxArr[{self.num_dst}];
             if reg_wiring:
                 code += reg_wiring
 
+        flags = []
+        for interface in self.interfaces:
+            flags += [f for f in interface.flags if f not in flags]
+        for flag in flags:
+            code += f"flags[{flag}] = true;\n"
+
         return code
 
     @property
@@ -54,10 +78,30 @@ RegId destRegIdxArr[{self.num_dst}];
         code = f"""Fault execute(ExecContext* xc, trace::InstRecord* traceData) const override;\n"""
         if self.has_mem:
             code += f"""\
-Fault initiateAcc(ExecContext *, trace::InstRecord *) const override;
-Fault completeAcc(PacketPtr, ExecContext *, trace::InstRecord *) const override;
+Fault initiateAcc(ExecContext* xc, trace::InstRecord* traceData) const override;
+Fault completeAcc(PacketPtr pkt, ExecContext* xc, trace::InstRecord* traceData) const override;
 """
         return code
+
+    def _split_acc(self):
+        mem = self.mem_access
+        pos = self.sem.index(mem)
+        before, after = self.sem[:pos], self.sem[pos + 1:]
+
+        if isinstance(mem, WriteMem):
+            initiate = render_nodes(before + [mem.initiate()] + after)
+            return f"{initiate}\nreturn NoFault;", "return NoFault;"
+
+        initiate = render_nodes(before + [mem.initiate()])
+        live = {id(v) for n in after for v in node_uses(n)}
+        recompute = []
+        for node in reversed(before):
+            var = node_def(node)
+            if var is not None and id(var) in live:
+                recompute.insert(0, node)
+                live.update(id(v) for v in node_uses(node))
+        complete = render_nodes(recompute + [mem.complete()] + after)
+        return initiate, f"{complete}\nreturn NoFault;"
 
     @property
     def meth_defs(self) -> str:
@@ -69,16 +113,17 @@ Fault {self.name}::execute(ExecContext* xc, trace::InstRecord* traceData) const
 return NoFault;
 }}"""
         if self.has_mem:
+            initiate, complete = self._split_acc()
             code += f"""
 
-Fault {self.name}::initiateAcc(ExecContext *, trace::InstRecord *) const
+Fault {self.name}::initiateAcc(ExecContext* xc, trace::InstRecord* traceData) const
 {{
-return NoFault;
+{initiate}
 }}
 
-Fault {self.name}::completeAcc(PacketPtr, ExecContext *, trace::InstRecord *) const
+Fault {self.name}::completeAcc(PacketPtr pkt, ExecContext* xc, trace::InstRecord* traceData) const
 {{
-return NoFault;
+{complete}
 }}
 """
         return code

@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import List, Set, Tuple
+from typing import Dict, List, Set, Tuple
 
 from .instruction import Instruction
 
@@ -17,6 +17,13 @@ class IConfig(ABC):
     @abstractmethod
     def excluded_instructions(self) -> Set[str]:
         pass
+
+    @property
+    def implicit_env(self) -> Dict[str, str]:
+        """Instruction name -> env function appended to its semantics.
+        For instructions whose effect is not expressed in the ADL semantics.
+        """
+        return {}
 
     @property
     @abstractmethod

@@ -13,7 +13,7 @@ MACH_INST = "machInst"
 def _emit_case(inst: "Instruction") -> str:
     return f"""\
 {inst.inst_id}: {inst.name}(
-op_class = {{{{ IntAluOp }}}},
+op_class = {{{{ {inst.op_class} }}}},
 memb_decls = {{{{
 {inst.memb_decls}
 }}}},
