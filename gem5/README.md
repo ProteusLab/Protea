@@ -40,6 +40,7 @@ Generates:
 | `Generic/instruction.py`            | Per-instruction model (container of generated nodes and registers)                                                    |
 | `Generic/operand.py`                | `Variable`/`Operand`/`Register` models with C++ rendering                                                             |
 | `Generic/nodes.py`                  | Code nodes (`render_nodes`)                                                                                           |
+| `Generic/properties.py`             | Derivation of StaticInst flags, op class and branch info from the semantics                                           |
 | `Generic/isa_emitter.py`            | `decoder_protea.isa` emission                                                                                         |
 | `Target/RISC_V/config.py`           | `RiscvConfig`: RISC-V configuration and artifact generation                                                           |
 | `Target/RISC_V/decoder_emitter.py`  | RISC-V C++ decoder module emission                                                                                    |

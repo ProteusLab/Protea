@@ -8,8 +8,9 @@ from lira.arch import Arch
 
 class IInterface(ABC):
     has_mem: ClassVar[bool] = False
+    # StaticInst flags implied by the side effect of a non-memory interface;
+    # everything else is derived from the semantics (see traits.py).
     flags: ClassVar[List[str]] = []
-    op_class: ClassVar[Optional[str]] = None
 
     @classmethod
     @abstractmethod
@@ -41,9 +42,6 @@ class IMemInterface(IInterface):
 
 
 class Load(IMemInterface):
-    flags: ClassVar[List[str]] = ["IsLoad"]
-    op_class: ClassVar[str] = "MemReadOp"
-
     @classmethod
     def match(cls, name: str) -> bool:
         return name.startswith("readMem")
@@ -59,9 +57,6 @@ class Load(IMemInterface):
 
 
 class Store(IMemInterface):
-    flags: ClassVar[List[str]] = ["IsStore"]
-    op_class: ClassVar[str] = "MemWriteOp"
-
     @classmethod
     def match(cls, name: str) -> bool:
         return name.startswith("writeMem")
@@ -100,7 +95,6 @@ xc->pcState(new_pc);
 
 class SysCall(IInterface):
     flags: ClassVar[List[str]] = ["IsSerializeAfter", "IsNonSpeculative", "IsSyscall"]
-    op_class: ClassVar[Optional[str]] = "No_OpClass"
 
     @classmethod
     def match(cls, name: str) -> bool:
@@ -115,7 +109,6 @@ return std::make_shared<SyscallFault>(
 
 class Breakpoint(IInterface):
     flags: ClassVar[List[str]] = ["IsSerializeAfter", "IsNonSpeculative"]
-    op_class: ClassVar[Optional[str]] = "No_OpClass"
 
     @classmethod
     def match(cls, name: str) -> bool:

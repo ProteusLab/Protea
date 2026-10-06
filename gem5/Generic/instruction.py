@@ -2,8 +2,10 @@
 
 from typing import List, Optional, Union
 
+from .interface import ReadPC
 from .nodes import ReadMem, WriteMem, node_def, node_uses, render_nodes
 from .operand import Register
+from .properties import Control
 
 
 class Instruction:
@@ -17,6 +19,10 @@ class Instruction:
         num_src: int,
         num_dst: int,
         has_mem: bool,
+        op_class: str,
+        flags: List[str],
+        cond_flags: List[str],
+        control: Optional[Control],
     ):
         self.inst_id: int = inst_id
         self.name: str = name
@@ -26,6 +32,11 @@ class Instruction:
         self.num_src: int = num_src
         self.num_dst: int = num_dst
         self.has_mem: bool = has_mem
+        self.op_class: str = op_class
+        self.flags: List[str] = flags
+        # C++ statements setting flags that depend on decoded operands.
+        self.cond_flags: List[str] = cond_flags
+        self.control: Optional[Control] = control
 
     @property
     def mem_access(self) -> Optional[Union[ReadMem, WriteMem]]:
@@ -33,17 +44,6 @@ class Instruction:
             if isinstance(node, (ReadMem, WriteMem)) and node.is_mem:
                 return node
         return None
-
-    @property
-    def interfaces(self) -> List[object]:
-        return [n.interface for n in self.sem if isinstance(n, (ReadMem, WriteMem))]
-
-    @property
-    def op_class(self) -> str:
-        for interface in self.interfaces:
-            if interface.op_class is not None:
-                return interface.op_class
-        return "IntAluOp"
 
     @property
     def memb_decls(self) -> str:
@@ -65,11 +65,10 @@ RegId destRegIdxArr[{self.num_dst}];
             if reg_wiring:
                 code += reg_wiring
 
-        flags = []
-        for interface in self.interfaces:
-            flags += [f for f in interface.flags if f not in flags]
-        for flag in flags:
+        for flag in self.flags:
             code += f"flags[{flag}] = true;\n"
+        for stmt in self.cond_flags:
+            code += stmt + "\n"
 
         return code
 
@@ -81,7 +80,30 @@ RegId destRegIdxArr[{self.num_dst}];
 Fault initiateAcc(ExecContext* xc, trace::InstRecord* traceData) const override;
 Fault completeAcc(PacketPtr pkt, ExecContext* xc, trace::InstRecord* traceData) const override;
 """
+        if self.has_branch_target:
+            code += """\
+std::unique_ptr<PCStateBase> branchTarget(const PCStateBase &branch_pc) const override;
+using StaticInst::branchTarget;
+"""
         return code
+
+    @property
+    def has_branch_target(self) -> bool:
+        # O3 decode calls branchTarget() for IsDirectControl instructions
+        return self.control is not None and self.control.direct
+
+    def _branch_target(self) -> str:
+        # The taken target computed from the branch PC instead of xc
+        body = []
+        for node in self.control.taken_slice:
+            if isinstance(node, ReadMem) and isinstance(node.interface, ReadPC):
+                body.append(f"{node.var.declaration}\n{node.var} = branch_pc.instAddr();\n")
+            else:
+                body.append(node)
+        return f"""{render_nodes(body)}
+std::unique_ptr<PCStateBase> target(branch_pc.clone());
+target->as<PCState>().set({self.control.taken});
+return target;"""
 
     def _split_acc(self):
         mem = self.mem_access
@@ -124,6 +146,15 @@ Fault {self.name}::initiateAcc(ExecContext* xc, trace::InstRecord* traceData) co
 Fault {self.name}::completeAcc(PacketPtr pkt, ExecContext* xc, trace::InstRecord* traceData) const
 {{
 {complete}
+}}
+"""
+        if self.has_branch_target:
+            code += f"""
+
+std::unique_ptr<PCStateBase>
+{self.name}::branchTarget(const PCStateBase &branch_pc) const
+{{
+{self._branch_target()}
 }}
 """
         return code

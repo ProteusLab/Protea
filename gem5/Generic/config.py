@@ -26,6 +26,22 @@ class IConfig(ABC):
         return {}
 
     @property
+    def link_registers(self) -> Set[int]:
+        """Numbers of link registers (return address stack hints for
+        IsCall/IsReturn). Not expressed in the semantics."""
+        return set()
+
+    @property
+    def manual_flags(self) -> Dict[str, List[str]]:
+        """Instruction name -> flags added to the derived ones."""
+        return {}
+
+    @property
+    def manual_op_class(self) -> Dict[str, str]:
+        """Instruction name -> op class replacing the derived one."""
+        return {}
+
+    @property
     @abstractmethod
     def decoder_isa(self) -> Path:
         pass

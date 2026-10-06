@@ -1,8 +1,13 @@
 # Mini RV32 SE config
-# Usage: gem5.opt se_rv32.py <atomic|timing|minor|o3> <binary> [max_insts]
+# Usage: gem5.opt se_rv32.py <atomic|timing|minor|o3> <binary> [max_insts] [--caches]
+# --caches adds private L1 instruction and data caches.
 import sys
 import m5
 from m5.objects import *
+
+caches = "--caches" in sys.argv
+if caches:
+    sys.argv.remove("--caches")
 
 cpu_cls = {"atomic": RiscvAtomicSimpleCPU, "timing": RiscvTimingSimpleCPU,
            "minor": RiscvMinorCPU, "o3": RiscvO3CPU}[sys.argv[1]]
@@ -16,8 +21,19 @@ system.cpu = cpu_cls()
 system.cpu.isa = [RiscvISA(riscv_type="RV32", enable_rvv=False)]
 system.cpu.max_insts_any_thread = int(sys.argv[3]) if len(sys.argv) > 3 else 0
 system.membus = SystemXBar()
-system.cpu.icache_port = system.membus.cpu_side_ports
-system.cpu.dcache_port = system.membus.cpu_side_ports
+if caches:
+    def l1(size):
+        return Cache(size=size, assoc=4, tag_latency=1, data_latency=1,
+                     response_latency=1, mshrs=8, tgts_per_mshr=16)
+    system.cpu.icache = l1("32kB")
+    system.cpu.dcache = l1("32kB")
+    system.cpu.icache.cpu_side = system.cpu.icache_port
+    system.cpu.dcache.cpu_side = system.cpu.dcache_port
+    system.cpu.icache.mem_side = system.membus.cpu_side_ports
+    system.cpu.dcache.mem_side = system.membus.cpu_side_ports
+else:
+    system.cpu.icache_port = system.membus.cpu_side_ports
+    system.cpu.dcache_port = system.membus.cpu_side_ports
 system.cpu.createInterruptController()
 system.mem_ctrl = MemCtrl(dram=DDR3_1600_8x8(range=system.mem_ranges[0]))
 system.mem_ctrl.port = system.membus.mem_side_ports

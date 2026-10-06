@@ -10,6 +10,7 @@ from Generic.instruction import Instruction
 from Generic.interface import InterfacesRegistry
 from Generic.builders import SemanticBuilder
 from Generic.nodes import WriteMem
+from Generic.properties import analyze
 from Target.RISC_V.config import RiscvConfig
 
 
@@ -37,6 +38,12 @@ class Driver:
             env = self.config.implicit_env.get(insn.name)
             if env is not None:
                 body.append(WriteMem(None, None, self.interfaces[env]))
+            properties = analyze(body, insn.encoding.encoded_size // 8)
+            flags, cond_flags = properties.gem5_flags(self.config.link_registers)
+            flags += [f for f in self.config.manual_flags.get(insn.name, [])
+                      if f not in flags]
+            op_class = self.config.manual_op_class.get(
+                insn.name, properties.gem5_op_class())
             insts.append(Instruction(
                 i,
                 insn.name.upper(),
@@ -46,6 +53,10 @@ class Driver:
                 len(sem.read_operands),
                 len(sem.write_operands),
                 sem.has_mem,
+                op_class,
+                flags,
+                cond_flags,
+                properties.control,
             ))
         return insts
 

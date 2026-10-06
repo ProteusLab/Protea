@@ -24,6 +24,11 @@ class RiscvConfig(IConfig):
         }
 
     @property
+    def link_registers(self) -> Set[int]:
+        # x1 (ra) and x5 (t0), RISC-V spec "Unconditional Jumps".
+        return {1, 5}
+
+    @property
     def implicit_env(self) -> Dict[str, str]:
         # ebreak has empty semantics in the ADL.
         return {"ebreak": "breakPoint"}

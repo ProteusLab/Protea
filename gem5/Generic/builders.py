@@ -139,6 +139,9 @@ class SemanticBuilder(CodeBuilder):
         self.write_operands: List[str] = []
         self.has_mem: bool = False
         self.regs: List[Register] = []
+        # First read of each register operand; later reads reuse it, since a
+        # source operand has the same value during the whole instruction
+        self._reg_reads: Dict[int, Variable] = {}
 
     def _scan(self) -> None:
         seq = self.insn.semantic
@@ -211,7 +214,12 @@ class SemanticBuilder(CodeBuilder):
             producer = self.stmt.input(0, em.insn.semantic)
             reg = cast(Register, em.resolve_var(producer.outputs[0]))
             out = self.stmt.outputs[0]
+            prev = em._reg_reads.get(id(reg))
+            if prev is not None and prev.width == self.stmt.outputs_types[0]:
+                em._vars[out] = prev
+                return
             var = em.variable(out, self.stmt.outputs_types[0])
+            em._reg_reads[id(reg)] = var
             em.nodes.append(ReadReg(reg, var))
 
     @register(StmtWrite.kind)
