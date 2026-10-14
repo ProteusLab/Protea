@@ -103,7 +103,8 @@ class WriteMem:
 
     def __str__(self) -> str:
         if not self.is_mem:
-            return f"{self.interface(self.addr, self.data)};"
+            code = self.interface(self.addr, self.data)
+            return f"{code};" if code else ""
         return _check_fault(self.interface.atomic(self.addr, self.data))
 
     def initiate(self) -> str:

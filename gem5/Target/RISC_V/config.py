@@ -19,9 +19,7 @@ class RiscvConfig(IConfig):
 
     @property
     def excluded_instructions(self) -> Set[str]:
-        return {
-            "fence"
-        }
+        return set()
 
     @property
     def link_registers(self) -> Set[int]:
@@ -30,8 +28,8 @@ class RiscvConfig(IConfig):
 
     @property
     def implicit_env(self) -> Dict[str, str]:
-        # ebreak has empty semantics in the ADL.
-        return {"ebreak": "breakPoint"}
+        # ebreak and fence have empty semantics in the ADL.
+        return {"ebreak": "breakPoint", "fence": "memBarrier"}
 
     @property
     def decoder_isa(self) -> Path:

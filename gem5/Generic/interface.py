@@ -120,6 +120,17 @@ bool virtualized = misa.rvh ? virtualizationEnabled(xc) : false;
 return std::make_shared<BreakpointFault>(xc->pcState(), virtualized)"""
 
 
+class MemBarrier(IInterface):
+    flags: ClassVar[List[str]] = ["IsReadBarrier", "IsWriteBarrier"]
+
+    @classmethod
+    def match(cls, name: str) -> bool:
+        return name == "memBarrier"
+
+    def __call__(self, addr: str, data: str) -> str:
+        return ""
+
+
 class InterfacesRegistry:
     def __init__(self, interfaces: List[type]):
         self._interfaces: List[type] = interfaces
@@ -133,7 +144,7 @@ class InterfacesRegistry:
 
     @classmethod
     def from_arch(cls, arch: Arch) -> "InterfacesRegistry":
-        reg = cls([Load, Store, ReadPC, WritePC, SysCall, Breakpoint])
+        reg = cls([Load, Store, ReadPC, WritePC, SysCall, Breakpoint, MemBarrier])
         for func in arch.environment_functions:
             reg._map[func.name] = reg._match(func.name)
         return reg
