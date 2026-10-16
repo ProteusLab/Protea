@@ -1,0 +1,237 @@
+/*
+ * Copyright (c) 2021 Huawei International
+ * Copyright (c) 2016-2018 ARM Limited
+ * All rights reserved
+ *
+ * The license below extends only to copyright in the software and shall
+ * not be construed as granting a license to any other intellectual
+ * property including but not limited to intellectual property relating
+ * to a hardware implementation of the functionality of the software
+ * licensed hereunder.  You may use the software subject to the license
+ * terms below provided that you ensure that this notice is replicated
+ * unmodified and in its entirety in all distributions of the software,
+ * modified or unmodified, in source code or in binary form.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met: redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer;
+ * redistributions in binary form must reproduce the above copyright
+ * notice, this list of conditions and the following disclaimer in the
+ * documentation and/or other materials provided with the distribution;
+ * neither the name of the copyright holders nor the names of its
+ * contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+abstract struct Packet {
+    b64 getAddr();
+    int getSize();
+    void makeResponse();
+    b32 getWord();
+    void setWord(b32 value);
+}
+abstract struct Platform {
+    void postPciInt(int id);
+    void clearPciInt(int id);
+}
+abstract struct VirtIODeviceBase {
+    b32 deviceId;
+    b32 deviceFeatures;
+    b32 getGuestFeatures();
+    void setGuestFeatures(b32 value);
+    b32 getQueueSelect();
+    void setQueueSelect(b32 value);
+    b32 getQueueSize();
+    b32 getQueueAddress();
+    void setQueueAddress(b32 value);
+    b32 getDeviceStatus();
+    void setDeviceStatus(b32 value);
+    void onNotify(b32 value);
+    void registerKickCallback(auto callback);
+    void readConfig(Packet* pkt, b64 offset);
+    void writeConfig(Packet* pkt, b64 offset);
+}
+abstract struct RiscvMmioVirtIOParams {
+    VirtIODeviceBase* vio;
+}
+abstract void warn(string message);
+abstract void warnOnce(string message);
+abstract void panicIf(bool condition, string message);
+abstract void fail(string message);
+
+device MmioVirtIO {
+    const b32 magic = 0x74726976;
+    const b32 version = 1;
+    const b32 vendor_id = 0x1af4;
+    const b32 align_size = 0x1000;
+    const b32 int_used_ring = 1;
+    const b32 int_config = 2;
+    b32 hostFeaturesSelect;
+    b32 guestFeaturesSelect;
+    b32 pageSize;
+    b32 interruptStatus;
+    VirtIODeviceBase* vio;
+    auto kickCallback = []{ kick(); };
+    abstract Platform* platform;
+    abstract int _interruptID;
+    abstract b64 pioAddr;
+    abstract b32 readRegister(b64 offset);
+    abstract void writeRegister(b64 offset, b32 data);
+
+    constructor(RiscvMmioVirtIOParams& params) : hostFeaturesSelect(0),
+        guestFeaturesSelect(0), pageSize(0), interruptStatus(0), vio(params.vio) {
+        vio.registerKickCallback(kickCallback);
+    }
+
+    register magic_value: size(4), offset(0x00), type(ro) {
+        b32 read() { return magic; }
+    }
+    register version_value: size(4), offset(0x04), type(ro) {
+        b32 read() { return version; }
+    }
+    register device_id: size(4), offset(0x08), type(ro) {
+        b32 read() { return vio.deviceId; }
+    }
+    register vendor: size(4), offset(0x0c), type(ro) {
+        b32 read() { return vendor_id; }
+    }
+    register host_features: size(4), offset(0x10), type(ro) {
+        b32 read() {
+            if (hostFeaturesSelect == 0) { return vio.deviceFeatures; }
+            return 0;
+        }
+    }
+    register host_features_select: size(4), offset(0x14) {
+        b32 read() { return hostFeaturesSelect; }
+        void write(b32 data) { hostFeaturesSelect = data; }
+    }
+    register guest_features: size(4), offset(0x20) {
+        b32 read() {
+            if (guestFeaturesSelect == 0) { return vio.getGuestFeatures(); }
+            return 0;
+        }
+        void write(b32 data) {
+            if (guestFeaturesSelect == 0) {
+                vio.setGuestFeatures(data);
+            } else if (data != 0) {
+                warn("Setting unimplemented guest features register");
+            }
+        }
+    }
+    register guest_features_select: size(4), offset(0x24) {
+        // Preserve the local gem5 implementation's host-selector readback.
+        b32 read() { return hostFeaturesSelect; }
+        void write(b32 data) { guestFeaturesSelect = data; }
+    }
+    register guest_page_size: size(4), offset(0x28) {
+        b32 read() { return pageSize; }
+        void write(b32 data) {
+            panicIf(data != align_size, "Unhandled VirtIO page size");
+            pageSize = data;
+        }
+    }
+    register queue_select: size(4), offset(0x30) {
+        b32 read() { return vio.getQueueSelect(); }
+        void write(b32 data) { vio.setQueueSelect(data); }
+    }
+    register queue_num_max: size(4), offset(0x34), type(ro) {
+        b32 read() { return vio.getQueueSize(); }
+    }
+    register queue_num: size(4), offset(0x38) {
+        b32 read() { return vio.getQueueSize(); }
+        void write(b32 data) { warnOnce("Ignoring queue resize hint"); }
+    }
+    register queue_align: size(4), offset(0x3c) {
+        b32 read() { return align_size; }
+        void write(b32 data) { panicIf(data != align_size, "Unhandled VirtIO alignment size"); }
+    }
+    register queue_pfn: size(4), offset(0x40) {
+        b32 read() { return vio.getQueueAddress(); }
+        void write(b32 data) { vio.setQueueAddress(data); }
+    }
+    register queue_notify: size(4), offset(0x50), type(wo) {
+        void write(b32 data) { vio.onNotify(data); }
+    }
+    register interrupt_status: size(4), offset(0x60), type(ro) {
+        b32 read() { return interruptStatus; }
+    }
+    register interrupt_ack: size(4), offset(0x64), type(wo) {
+        void write(b32 data) { setInterrupts(interruptStatus & ~data); }
+    }
+    register status: size(4), offset(0x70) {
+        b32 read() { return vio.getDeviceStatus(); }
+        void write(b32 data) {
+            panicIf(data > 0xff, "Unexpected status");
+            vio.setDeviceStatus(data);
+        }
+    }
+
+    b64 read(Packet* pkt) {
+        b64 offset = pkt.getAddr() - pioAddr;
+        if (offset >= 0x100) {
+            vio.readConfig(pkt, offset - 0x100);
+            return 0;
+        }
+        panicIf(pkt.getSize() != 4, "Unexpected read size");
+        b32 value = readRegister(offset);
+        pkt.makeResponse();
+        pkt.setWord(value);
+        return 0;
+    }
+
+    b64 write(Packet* pkt) {
+        b64 offset = pkt.getAddr() - pioAddr;
+        if (offset >= 0x100) {
+            vio.writeConfig(pkt, offset - 0x100);
+            return 0;
+        }
+        panicIf(pkt.getSize() != 4, "Unexpected write size");
+        pkt.makeResponse();
+        writeRegister(offset, pkt.getWord());
+        return 0;
+    }
+
+    b32 readUnknown(b64 offset) {
+        if ((offset == 0x50) | (offset == 0x64)) {
+            warn("Guest is trying to read a write-only register");
+            return 0;
+        }
+        fail("Unhandled read offset");
+        return 0;
+    }
+
+    void writeUnknown(b64 offset, b32 data) {
+        if ((offset == 0) | (offset == 4) | (offset == 8) | (offset == 0xc) | (offset == 0x10) | (offset == 0x34) | (offset == 0x60)) {
+            warn("Guest is trying to write a read-only register");
+            return;
+        }
+        fail("Unhandled read offset");
+    }
+
+    void kick() {
+        setInterrupts(interruptStatus | int_used_ring);
+    }
+
+    void setInterrupts(b32 value) {
+        b32 old_ints = interruptStatus;
+        interruptStatus = value;
+        if ((old_ints == 0) & (interruptStatus != 0)) {
+            platform.postPciInt(_interruptID);
+        } else if ((old_ints != 0) & (interruptStatus == 0)) {
+            platform.clearPciInt(_interruptID);
+        }
+    }
+}

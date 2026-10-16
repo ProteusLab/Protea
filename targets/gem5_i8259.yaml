@@ -1,0 +1,58 @@
+name: gem5_i8259
+devices:
+- I8259
+namespace: gem5::X86ISA
+base: BasicPioDevice
+register_backend: custom
+ctor_base_args: params, 2
+includes:
+- <algorithm>
+- <array>
+- <cassert>
+- <cstring>
+- <functional>
+- <map>
+- <memory>
+- <string>
+- <vector>
+- base/logging.hh
+- dev/io_device.hh
+- mem/packet_access.hh
+- params/I8259.hh
+- sim/serialize.hh
+- dev/intpin.hh
+- arch/x86/x86_traits.hh
+- base/bitfield.hh
+- enums/X86I8259CascadeMode.hh
+inherited_fields:
+- pioAddr
+- pioSize
+- pioDelay
+- sys
+forward_decls:
+- class I8259;
+port_body: |-
+  if (if_name == "inputs") return *inputs.at(idx);
+  if (if_name == "output") return *output.at(idx);
+  return BasicPioDevice::getPort(if_name, idx);
+env:
+  require: assert
+  panicIf: panic_if
+  fatalIf: fatal_if
+  fail: panic
+  toString: std::to_string
+  rangeSize: RangeSize
+  AddrRangeList.push: push_back
+  newSourcePin: new IntSourcePinBase
+  newSinkPin: new IntSinkPinBase
+  basicInit: BasicPioDevice::init
+  Pic: I8259
+  findMsb: findMsbSet
+  intAcknowledgeAddress: PhysAddrIntA
+packet:
+  latency: latency
+  width: 1
+  response: atomic
+  match: all
+  unmapped: ignore
+  denied: ignore

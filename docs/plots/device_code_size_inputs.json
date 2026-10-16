@@ -1,0 +1,240 @@
+{
+  "gem5_revision": "f5c5a6e390f55dd5984977815bf9d0bd05da6945",
+  "metric": "Physical lines with non-comment, non-whitespace content; preprocessor directives included",
+  "inputs": [
+    {
+      "device": "CLINT",
+      "gem5": [
+        {
+          "path": "src/dev/riscv/clint.cc",
+          "code_lines": 190,
+          "physical_lines": 269,
+          "bytes": 8321,
+          "sha256": "64db143834bc8919ad445cd51b757fcf3cf3463156040c31ea993b8a5bffdec1"
+        },
+        {
+          "path": "src/dev/riscv/clint.hh",
+          "code_lines": 69,
+          "physical_lines": 172,
+          "bytes": 5240,
+          "sha256": "95b6334ba4c781d298b2518a5e093ffbc2ace8d817352dd7af0eb3616607010a"
+        }
+      ],
+      "plod": {
+        "path": "lib/Devices/clint.rb",
+        "code_lines": 110,
+        "physical_lines": 136,
+        "bytes": 3168,
+        "sha256": "2a079e8e661f4570bb37bbe824b2fbd6d718a0118b28e3fe1aa973466d4ed34c"
+      }
+    },
+    {
+      "device": "UART8250",
+      "gem5": [
+        {
+          "path": "src/dev/serial/uart8250.cc",
+          "code_lines": 237,
+          "physical_lines": 324,
+          "bytes": 9381,
+          "sha256": "66725c8084a36f93a6497f53d1e9d29c36d4714af04f88e599dc2251f62f9714"
+        },
+        {
+          "path": "src/dev/serial/uart8250.hh",
+          "code_lines": 165,
+          "physical_lines": 249,
+          "bytes": 7636,
+          "sha256": "14c76024a93a41a9d3c051d115a960a75a91e3c60db4195676e00a4b2a5df2ad"
+        }
+      ],
+      "plod": {
+        "path": "lib/Devices/uart8250.rb",
+        "code_lines": 223,
+        "physical_lines": 274,
+        "bytes": 5574,
+        "sha256": "55adc4be1b9c61deac781f75fd417cb3892cb094c49007f03a0e734f8fd1d241"
+      }
+    },
+    {
+      "device": "PLIC",
+      "gem5": [
+        {
+          "path": "src/dev/riscv/plic.cc",
+          "code_lines": 455,
+          "physical_lines": 602,
+          "bytes": 19003,
+          "sha256": "926c7c674bd636312c0a858e1088efeb75b844a4ad7f222e775ac571da57aa1a"
+        },
+        {
+          "path": "src/dev/riscv/plic.hh",
+          "code_lines": 99,
+          "physical_lines": 308,
+          "bytes": 8693,
+          "sha256": "2bdb499396786d55276d2557aa7b63d33641408d6cf7145853c67a45abf43e6c"
+        }
+      ],
+      "plod": {
+        "path": "lib/Devices/plic.rb",
+        "code_lines": 312,
+        "physical_lines": 388,
+        "bytes": 12267,
+        "sha256": "f5c1b9c3498116645dff523671cf8609134960fde8129be94aa85aab9cb89f6f"
+      }
+    },
+    {
+      "device": "VirtIO MMIO",
+      "gem5": [
+        {
+          "path": "src/dev/riscv/vio_mmio.cc",
+          "code_lines": 182,
+          "physical_lines": 282,
+          "bytes": 8261,
+          "sha256": "112986211a748d4d90c97ff51167d35576fac9afe3c943ba4f734ffc15a957ce"
+        },
+        {
+          "path": "src/dev/riscv/vio_mmio.hh",
+          "code_lines": 63,
+          "physical_lines": 123,
+          "bytes": 3980,
+          "sha256": "55924bc7b04bed4fc9336d2d06a6d09cfa13731ebbf480f3be9b22255f21644e"
+        }
+      ],
+      "plod": {
+        "path": "lib/Devices/vio_mmio.rb",
+        "code_lines": 204,
+        "physical_lines": 261,
+        "bytes": 8122,
+        "sha256": "facea13d5b30a472e776ace3ade4c376f084fa93c36a896f73dbb3f462b67357"
+      }
+    },
+    {
+      "device": "i8042",
+      "gem5": [
+        {
+          "path": "src/dev/x86/i8042.cc",
+          "code_lines": 257,
+          "physical_lines": 322,
+          "bytes": 11891,
+          "sha256": "62476ce173569a97d0bef90634333796ccd0c20f8d07f609d0b12b2da8c76735"
+        },
+        {
+          "path": "src/dev/x86/i8042.hh",
+          "code_lines": 100,
+          "physical_lines": 151,
+          "bytes": 4630,
+          "sha256": "7cd36ea96529dc37031e10fbd284d56c705303940a3c4ec55a37f4189c8b3c06"
+        }
+      ],
+      "plod": {
+        "path": "lib/Devices/i8042.rb",
+        "code_lines": 199,
+        "physical_lines": 247,
+        "bytes": 8326,
+        "sha256": "7b54fa7d5c8526b55d8cacb119a43d5a6a603db6a20aac4e28389efa974b9776"
+      }
+    },
+    {
+      "device": "i82094AA",
+      "gem5": [
+        {
+          "path": "src/dev/x86/i82094aa.cc",
+          "code_lines": 250,
+          "physical_lines": 313,
+          "bytes": 9936,
+          "sha256": "7a412946a146ac5b2416fe56c8b01442044e3732ea3703ada33c4de2268ff6d0"
+        },
+        {
+          "path": "src/dev/x86/i82094aa.hh",
+          "code_lines": 65,
+          "physical_lines": 119,
+          "bytes": 3743,
+          "sha256": "6aa2b07c5875895171e87659279905ee792e5442177ea5d480ca38de129f3f7f"
+        }
+      ],
+      "plod": {
+        "path": "lib/Devices/i82094aa.rb",
+        "code_lines": 239,
+        "physical_lines": 301,
+        "bytes": 9672,
+        "sha256": "57e6fb468a050e4728a19e14a1b451de7707d6d5e82a2eac0f9a1abf66ff64d7"
+      }
+    },
+    {
+      "device": "i8237",
+      "gem5": [
+        {
+          "path": "src/dev/x86/i8237.cc",
+          "code_lines": 139,
+          "physical_lines": 197,
+          "bytes": 5868,
+          "sha256": "904b18d1f16c81668c3900a260f26bc746ba1c4f251197a3cea64a603547d3fb"
+        },
+        {
+          "path": "src/dev/x86/i8237.hh",
+          "code_lines": 70,
+          "physical_lines": 123,
+          "bytes": 3553,
+          "sha256": "70e3db6a130b9c07309db2e9cc73136a25603d9ef40e34ba46503b027d995f4b"
+        }
+      ],
+      "plod": {
+        "path": "lib/Devices/i8237.rb",
+        "code_lines": 137,
+        "physical_lines": 180,
+        "bytes": 5403,
+        "sha256": "ecac8847cbfd9499364aa515307e4ce9924001810a63bad36d2121e5dfec26c8"
+      }
+    },
+    {
+      "device": "i8254",
+      "gem5": [
+        {
+          "path": "src/dev/x86/i8254.cc",
+          "code_lines": 64,
+          "physical_lines": 102,
+          "bytes": 3051,
+          "sha256": "00ac203939537a996843069261d6d7ffa34137b590a3da5e8e09d5ddbaf2124a"
+        },
+        {
+          "path": "src/dev/x86/i8254.hh",
+          "code_lines": 78,
+          "physical_lines": 129,
+          "bytes": 3666,
+          "sha256": "d9ad264e2cf7ac379faa01baa64da3cf43f6c24be2fe9e9e4ff16b3f042ae2ad"
+        }
+      ],
+      "plod": {
+        "path": "lib/Devices/i8254.rb",
+        "code_lines": 96,
+        "physical_lines": 146,
+        "bytes": 4726,
+        "sha256": "3dbd0bcd022550c047113b5d0c59ed193d439919d5cf9e761fe5343a79442381"
+      }
+    },
+    {
+      "device": "i8259",
+      "gem5": [
+        {
+          "path": "src/dev/x86/i8259.cc",
+          "code_lines": 322,
+          "physical_lines": 379,
+          "bytes": 12684,
+          "sha256": "4015d84556d234915d84994b005de738e52ae63106c169c7ba5db96166b69514"
+        },
+        {
+          "path": "src/dev/x86/i8259.hh",
+          "code_lines": 70,
+          "physical_lines": 132,
+          "bytes": 3868,
+          "sha256": "b711517d292317685ed39a9f5ae0724690593c3bcd645a7f945130347a4a31db"
+        }
+      ],
+      "plod": {
+        "path": "lib/Devices/i8259.rb",
+        "code_lines": 251,
+        "physical_lines": 301,
+        "bytes": 8730,
+        "sha256": "ee7e63ce895dbd96df0d06a8f43fcc89600481a67e3597172accadac48ee1cc3"
+      }
+    }
+  ]
+}

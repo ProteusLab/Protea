@@ -1,0 +1,40 @@
+# Frozen gem5 reference devices
+
+Copied from the local gem5 checkout at revision
+`f5c5a6e390f55dd5984977815bf9d0bd05da6945`.
+
+The files retain their original copyright and license notices. The runtime
+tests compile these source implementations alongside the generated PLOD
+devices in separate binaries, using the same executable simulator stubs.
+The native register-bank header is shared by both versions. X86 comparisons
+also share the unmodified Intel8254Timer engine, bitfields and BitUnion
+implementation; interrupt transport and PS/2 peers are observable stubs.
+
+These fixtures require no external gem5 checkout. Update them only when
+intentionally changing the compatibility reference; review and update the
+PLOD descriptions and differential expectations together.
+
+Snapshot SHA-256:
+
+```text
+926c7c674bd636312c0a858e1088efeb75b844a4ad7f222e775ac571da57aa1a  tests/support/gem5_reference/dev/riscv/plic.cc
+2bdb499396786d55276d2557aa7b63d33641408d6cf7145853c67a45abf43e6c  tests/support/gem5_reference/dev/riscv/plic.hh
+112986211a748d4d90c97ff51167d35576fac9afe3c943ba4f734ffc15a957ce  tests/support/gem5_reference/dev/riscv/vio_mmio.cc
+55924bc7b04bed4fc9336d2d06a6d09cfa13731ebbf480f3be9b22255f21644e  tests/support/gem5_reference/dev/riscv/vio_mmio.hh
+234515796f887bf7bda366125c02cab401a8eee70142ebc6e129e2071e5a0063  tests/support/gem5_stub/dev/reg_bank.hh
+095571d7559fbfe3bf8f01f2d17d67eb8e8f06482d648124366ee05233e6a915  tests/support/gem5_reference/dev/intel_8254_timer.cc
+2cd36760c1dde6dc268fd47c8feef98b699c23055f377535790729cdccd37b73  tests/support/gem5_reference/dev/intel_8254_timer.hh
+62476ce173569a97d0bef90634333796ccd0c20f8d07f609d0b12b2da8c76735  tests/support/gem5_reference/dev/x86/i8042.cc
+7cd36ea96529dc37031e10fbd284d56c705303940a3c4ec55a37f4189c8b3c06  tests/support/gem5_reference/dev/x86/i8042.hh
+7a412946a146ac5b2416fe56c8b01442044e3732ea3703ada33c4de2268ff6d0  tests/support/gem5_reference/dev/x86/i82094aa.cc
+6aa2b07c5875895171e87659279905ee792e5442177ea5d480ca38de129f3f7f  tests/support/gem5_reference/dev/x86/i82094aa.hh
+904b18d1f16c81668c3900a260f26bc746ba1c4f251197a3cea64a603547d3fb  tests/support/gem5_reference/dev/x86/i8237.cc
+70e3db6a130b9c07309db2e9cc73136a25603d9ef40e34ba46503b027d995f4b  tests/support/gem5_reference/dev/x86/i8237.hh
+00ac203939537a996843069261d6d7ffa34137b590a3da5e8e09d5ddbaf2124a  tests/support/gem5_reference/dev/x86/i8254.cc
+d9ad264e2cf7ac379faa01baa64da3cf43f6c24be2fe9e9e4ff16b3f042ae2ad  tests/support/gem5_reference/dev/x86/i8254.hh
+4015d84556d234915d84994b005de738e52ae63106c169c7ba5db96166b69514  tests/support/gem5_reference/dev/x86/i8259.cc
+b711517d292317685ed39a9f5ae0724690593c3bcd645a7f945130347a4a31db  tests/support/gem5_reference/dev/x86/i8259.hh
+b07f7656396c5988385c4e1726a2216083e84bb8531d702af3f17aa9dd6f346d  tests/support/gem5_stub/base/bitfield.hh
+fedf0c20cd9108793c499728234849a0e6688e6aca4d5b3ac7605a542d194aa7  tests/support/gem5_stub/base/bitunion.hh
+2cd36760c1dde6dc268fd47c8feef98b699c23055f377535790729cdccd37b73  tests/support/gem5_stub/dev/intel_8254_timer.hh
+```

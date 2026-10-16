@@ -1,0 +1,132 @@
+/*
+ * Copyright (c) 2008 The Regents of The University of Michigan
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met: redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer;
+ * redistributions in binary form must reproduce the above copyright
+ * notice, this list of conditions and the following disclaimer in the
+ * documentation and/or other materials provided with the distribution;
+ * neither the name of the copyright holders nor the names of its
+ * contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+abstract struct Packet {
+    b64 getAddr();
+    int getSize();
+    b8 getByte();
+    void setByte(b8 value);
+    b32 getWord();
+    void setWord(b32 value);
+    void makeAtomicResponse();
+}
+abstract struct CheckpointOut {}
+abstract struct CheckpointIn {}
+abstract struct AddrRange {}
+abstract struct AddrRangeList { void push(AddrRange value); }
+abstract AddrRange rangeSize(b64 base, b64 size);
+abstract void require(bool condition);
+abstract void panicIf(bool condition, string message);
+abstract void fatalIf(bool condition, string message);
+abstract void fail(string message);
+abstract void warn(string message);
+abstract string toString(int value);
+abstract void saveScalar(CheckpointOut& cp, string key, auto value);
+abstract b64 loadScalar(CheckpointIn& cp, string key);
+abstract void saveArray(CheckpointOut& cp, string key, auto values);
+abstract void loadArray(CheckpointIn& cp, string key, auto values);
+abstract struct IntSourcePinBase {
+    void raise();
+    void lower();
+}
+abstract struct IntSinkPinBase {
+    int getId();
+    bool state();
+}
+abstract IntSourcePinBase* newSourcePin(string name, int id, auto owner);
+abstract IntSinkPinBase* newSinkPin(string name, int id, auto owner);
+abstract struct Timer {
+    b8 readCounter(b32 num);
+    void writeCounter(b32 num, b8 data);
+    void writeControl(b8 data);
+    bool outputHigh(b32 num);
+    void serialize(string base, CheckpointOut& cp) const;
+    void unserialize(string base, CheckpointIn& cp);
+    void startup();
+}
+abstract struct I8254Params {
+    b64 pio_latency;
+    string name;
+    int port_int_pin_connection_count;
+}
+
+device I8254 {
+    b64 latency;
+    auto counterCallback = [](b32 num) { counterInterrupt(num); };
+    Timer pit;
+    vector<IntSourcePinBase*> intPin;
+    abstract b64 pioAddr;
+    abstract string name();
+
+    constructor(I8254Params& params) : latency(params.pio_latency), pit(self, params.name, counterCallback) {
+        for (int i = 0; i < params.port_int_pin_connection_count; ++i) {
+            intPin.push(newSourcePin(name() + ".int_pin[" + toString(i) + "]", i, self));
+        }
+    }
+    void counterInterrupt(b32 num) {
+        if (num == 0) {
+            for (int i = 0; i < intPin.size(); ++i) {
+                intPin.at(i).raise();
+                intPin.at(i).lower();
+            }
+        }
+    }
+    bool outputHigh(b32 num) { return pit.outputHigh(num); }
+    b8 readCounter(b32 num) { return pit.readCounter(num); }
+    void writeCounter(b32 num, b8 data) { pit.writeCounter(num, data); }
+    void writeControl(b8 data) { pit.writeControl(data); }
+    register counter: size(1), offset(0), seqn(3) {
+        b8 read() { return pit.readCounter(static_cast<b32>(cid)); }
+        void write(b8 data) { pit.writeCounter(static_cast<b32>(cid), data); }
+    }
+    register control: size(1), offset(3) {
+        b8 read() { return 0xff; }
+        void write(b8 data) { pit.writeControl(data); }
+    }
+    b64 read(Packet* pkt) {
+        require(pkt.getSize() == 1);
+        b64 offset = pkt.getAddr() - pioAddr;
+        if (offset < 3) { pkt.setByte(counter.read(offset)); }
+        else if (offset == 3) { pkt.setByte(control.read()); }
+        else { fail("Read from undefined i8254 register"); }
+        pkt.makeAtomicResponse();
+        return latency;
+    }
+    b64 write(Packet* pkt) {
+        require(pkt.getSize() == 1);
+        b64 offset = pkt.getAddr() - pioAddr;
+        if (offset < 3) { counter.write(pkt.getByte(), offset); }
+        else if (offset == 3) { control.write(pkt.getByte()); }
+        else { fail("Write to undefined i8254 register"); }
+        pkt.makeAtomicResponse();
+        return latency;
+    }
+    void serialize(CheckpointOut& cp) const { pit.serialize("pit", cp); }
+    void unserialize(CheckpointIn& cp) { pit.unserialize("pit", cp); }
+    void startup() { pit.startup(); }
+}

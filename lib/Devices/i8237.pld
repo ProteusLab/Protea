@@ -1,0 +1,143 @@
+/*
+ * Copyright (c) 2008 The Regents of The University of Michigan
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met: redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer;
+ * redistributions in binary form must reproduce the above copyright
+ * notice, this list of conditions and the following disclaimer in the
+ * documentation and/or other materials provided with the distribution;
+ * neither the name of the copyright holders nor the names of its
+ * contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+abstract struct Packet {
+    b64 getAddr();
+    int getSize();
+    b8 getByte();
+    void setByte(b8 value);
+    b32 getWord();
+    void setWord(b32 value);
+    void makeAtomicResponse();
+}
+abstract struct CheckpointOut {}
+abstract struct CheckpointIn {}
+abstract struct AddrRange {}
+abstract struct AddrRangeList { void push(AddrRange value); }
+abstract AddrRange rangeSize(b64 base, b64 size);
+abstract void require(bool condition);
+abstract void panicIf(bool condition, string message);
+abstract void fatalIf(bool condition, string message);
+abstract void fail(string message);
+abstract void warn(string message);
+abstract string toString(int value);
+abstract void saveScalar(CheckpointOut& cp, string key, auto value);
+abstract b64 loadScalar(CheckpointIn& cp, string key);
+abstract void saveArray(CheckpointOut& cp, string key, auto values);
+abstract void loadArray(CheckpointIn& cp, string key, auto values);
+abstract struct I8237Params { b64 pio_latency; }
+
+device I8237 {
+    b64 latency;
+    b8 maskVal;
+    b8 requestVal;
+    b8 commandVal;
+    b8 statusVal;
+    b8 tempVal;
+    bool highByte;
+    b8 modes[4];
+    abstract b64 pioAddr;
+    abstract b64 pioSize;
+    abstract void initRegisters();
+    abstract void readRegisters(Packet* pkt);
+    abstract void writeRegisters(Packet* pkt);
+    abstract void basicInit();
+
+    constructor(I8237Params& params) : latency(params.pio_latency) {
+        for (int i = 0; i < 4; ++i) { modes.set(i, 0); }
+        initRegisters();
+        reset();
+    }
+    void init() { basicInit(); }
+    void reset() {
+        maskVal = 0xf;
+        requestVal = 0;
+        commandVal = 0;
+        statusVal = 0;
+        tempVal = 0;
+        highByte = 0;
+    }
+    register channel: size(1), offset(0), seqn(8) {
+        b8 read() { fail("Read from i8237 channel unimplemented"); return 0; }
+        void write(b8 data) { fail("Write to i8237 channel unimplemented"); }
+    }
+    register status_command: size(1), offset(8) {
+        b8 read() { return statusVal; }
+        void write(b8 data) { commandVal = data; }
+    }
+    register request: size(1), offset(9) {
+        b8 read() { fail("Illegal read from i8237 request register"); return 0; }
+        void write(b8 data) {
+            b8 select = data & 3;
+            b8 bitVal = (data >> 2) & 1;
+            panicIf(bitVal != 0, "Requesting i8237 DMA transfers is unimplemented");
+            requestVal = (requestVal & ~(static_cast<b8>(1) << select)) | (bitVal << select);
+        }
+    }
+    register set_mask_bit: size(1), offset(10) {
+        b8 read() { fail("Illegal read from i8237 set mask register"); return 0; }
+        void write(b8 data) {
+            b8 select = data & 3;
+            b8 bitVal = (data >> 2) & 1;
+            panicIf(bitVal == 0, "Turning on i8237 channels unimplemented");
+            maskVal = (maskVal & ~(static_cast<b8>(1) << select)) | (bitVal << select);
+        }
+    }
+    register mode: size(1), offset(11) {
+        b8 read() { fail("Illegal read from i8237 mode register"); return 0; }
+        void write(b8 data) { modes.set(data & 3, data); }
+    }
+    register clear_flip_flop: size(1), offset(12) {
+        b8 read() { fail("Illegal read from i8237 clear flip-flop register"); return 0; }
+        void write(b8 data) { highByte = 0; }
+    }
+    register temporary_master_clear: size(1), offset(13) {
+        b8 read() { return tempVal; }
+        void write(b8 data) { reset(); }
+    }
+    register clear_mask: size(1), offset(14) {
+        b8 read() { fail("Illegal read from i8237 clear mask register"); return 0; }
+        void write(b8 data) { maskVal = 0; }
+    }
+    register write_mask: size(1), offset(15) {
+        b8 read() { fail("Illegal read from i8237 write mask register"); return 0; }
+        void write(b8 data) { maskVal = data & 15; }
+    }
+    b64 read(Packet* pkt) {
+        readRegisters(pkt);
+        pkt.makeAtomicResponse();
+        return latency;
+    }
+    b64 write(Packet* pkt) {
+        writeRegisters(pkt);
+        pkt.makeAtomicResponse();
+        return latency;
+    }
+    void serialize(CheckpointOut& cp) const { saveScalar(cp, "maskReg", maskVal); }
+    void unserialize(CheckpointIn& cp) { maskVal = static_cast<b8>(loadScalar(cp, "maskReg")); }
+}

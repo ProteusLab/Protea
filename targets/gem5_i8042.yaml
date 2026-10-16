@@ -1,0 +1,48 @@
+name: gem5_i8042
+devices:
+- I8042
+namespace: gem5::X86ISA
+base: PioDevice
+register_backend: custom
+includes:
+- <algorithm>
+- <array>
+- <cassert>
+- <cstring>
+- <functional>
+- <map>
+- <memory>
+- <string>
+- <vector>
+- base/logging.hh
+- dev/io_device.hh
+- mem/packet_access.hh
+- params/I8042.hh
+- sim/serialize.hh
+- dev/intpin.hh
+- dev/ps2/device.hh
+inherited_fields:
+- pioAddr
+- pioSize
+- pioDelay
+- sys
+port_body: |-
+  if (if_name == "mouse_int_pin") return *mouseIntPin.at(idx);
+  if (if_name == "keyboard_int_pin") return *keyboardIntPin.at(idx);
+  return PioDevice::getPort(if_name, idx);
+env:
+  require: assert
+  panicIf: panic_if
+  fatalIf: fatal_if
+  fail: panic
+  toString: std::to_string
+  rangeSize: RangeSize
+  AddrRangeList.push: push_back
+  newSourcePin: new IntSourcePinBase
+  newSinkPin: new IntSinkPinBase
+  basicInit: BasicPioDevice::init
+  Ps2Device: ps2::Device
+packet:
+  latency: latency
+  width: 1
+  response: atomic

@@ -1,0 +1,254 @@
+/*
+ * Copyright (c) 2004-2005 The Regents of The University of Michigan
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met: redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer;
+ * redistributions in binary form must reproduce the above copyright
+ * notice, this list of conditions and the following disclaimer in the
+ * documentation and/or other materials provided with the distribution;
+ * neither the name of the copyright holders nor the names of its
+ * contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+abstract struct Packet {
+    b64 getAddr();
+    int getSize();
+    b8 getByte();
+    void setByte(b8 value);
+    b32 getWord();
+    void setWord(b32 value);
+    void makeAtomicResponse();
+}
+abstract struct CheckpointOut {}
+abstract struct CheckpointIn {}
+abstract struct AddrRange {}
+abstract struct AddrRangeList { void push(AddrRange value); }
+abstract AddrRange rangeSize(b64 base, b64 size);
+abstract void require(bool condition);
+abstract void panicIf(bool condition, string message);
+abstract void fatalIf(bool condition, string message);
+abstract void fail(string message);
+abstract void warn(string message);
+abstract string toString(int value);
+abstract void saveScalar(CheckpointOut& cp, string key, auto value);
+abstract b64 loadScalar(CheckpointIn& cp, string key);
+abstract void saveArray(CheckpointOut& cp, string key, auto values);
+abstract void loadArray(CheckpointIn& cp, string key, auto values);
+abstract struct IntSourcePinBase {
+    void raise();
+    void lower();
+}
+abstract struct IntSinkPinBase {
+    int getId();
+    bool state();
+}
+abstract IntSourcePinBase* newSourcePin(string name, int id, auto owner);
+abstract IntSinkPinBase* newSinkPin(string name, int id, auto owner);
+abstract struct Pic { int getVector(); }
+abstract struct I8259Params {
+    b64 pio_latency;
+    int mode;
+    Pic* slave;
+    int port_output_connection_count;
+    int port_inputs_connection_count;
+}
+abstract int findMsb(b8 value);
+abstract b64 intAcknowledgeAddress;
+
+device I8259 {
+    bool pinStates[8];
+    b64 latency;
+    vector<IntSourcePinBase*> output;
+    vector<IntSinkPinBase*> inputs;
+    int mode;
+    Pic* slave;
+    b8 irr;
+    b8 isr;
+    b8 imr;
+    b8 vectorOffset;
+    bool cascadeMode;
+    b8 cascadeBits;
+    bool edgeTriggered;
+    bool readIRR;
+    bool expectICW4;
+    int initControlWord;
+    bool autoEOI;
+    abstract b64 pioAddr;
+    abstract b64 pioSize;
+    abstract string name();
+    abstract void basicInit();
+
+    constructor(I8259Params& params) : latency(params.pio_latency), mode(params.mode), slave(params.slave),
+        irr(0), isr(0), imr(0), vectorOffset(0), cascadeMode(0), cascadeBits(0), edgeTriggered(1),
+        readIRR(1), expectICW4(0), initControlWord(0), autoEOI(0) {
+        for (int i = 0; i < 8; ++i) { pinStates.set(i, 0); }
+        for (int i = 0; i < params.port_output_connection_count; ++i) {
+            output.push(newSourcePin(name() + ".output[" + toString(i) + "]", i, self));
+        }
+        panicIf(params.port_inputs_connection_count > 8, "I8259 only supports 8 inputs");
+        for (int i = 0; i < params.port_inputs_connection_count; ++i) {
+            inputs.push(newSinkPin(name() + ".inputs[" + toString(i) + "]", i, self));
+        }
+    }
+    AddrRangeList getAddrRanges() const {
+        AddrRangeList ranges;
+        ranges.push(rangeSize(pioAddr, pioSize));
+        if ((mode == 0) | (mode == 2)) { ranges.push(rangeSize(intAcknowledgeAddress, 1)); }
+        return ranges;
+    }
+    void init() {
+        basicInit();
+        for (int i = 0; i < inputs.size(); ++i) {
+            pinStates.set(inputs.at(i).getId(), inputs.at(i).state());
+        }
+    }
+    register command: size(1), offset(0) {
+        b8 read() {
+            if (readIRR) { return irr; }
+            return isr;
+        }
+        void write(b8 data) {
+            if ((data & 0x10) != 0) {
+                imr = 0;
+                edgeTriggered = (data >> 3) & 1;
+                cascadeMode = (data & 2) == 0;
+                expectICW4 = data & 1;
+                if (expectICW4 == 0) { autoEOI = 0; }
+                initControlWord = 1;
+            } else if (((data >> 3) & 3) == 0) {
+                b8 operation = data >> 5;
+                if (operation == 1) { handleEOI(findMsb(isr)); }
+                else if (operation == 3) { handleEOI(data & 7); }
+            } else if (((data >> 3) & 3) == 1) {
+                if ((data & 2) != 0) { readIRR = data & 1; }
+            }
+        }
+    }
+    register mask: size(1), offset(1) {
+        b8 read() { return imr; }
+        void write(b8 data) {
+            if (initControlWord == 0) { imr = data; }
+            else if (initControlWord == 1) {
+                vectorOffset = data & 0xf8;
+                if (cascadeMode) { initControlWord += 1; }
+                else { cascadeBits = 0; initControlWord = 0; }
+            } else if (initControlWord == 2) {
+                if (mode == 0) { cascadeBits = data; }
+                else { cascadeBits = data & 7; }
+                if (expectICW4) { initControlWord += 1; }
+                else { initControlWord = 0; }
+            } else if (initControlWord == 3) {
+                autoEOI = (data >> 1) & 1;
+                initControlWord = 0;
+            }
+        }
+    }
+    b64 read(Packet* pkt) {
+        require(pkt.getSize() == 1);
+        if (pkt.getAddr() == intAcknowledgeAddress) {
+            require((mode == 0) | (mode == 2));
+            pkt.setByte(static_cast<b8>(getVector()));
+        }
+        b64 offset = pkt.getAddr() - pioAddr;
+        if (offset == 0) { pkt.setByte(command.read()); }
+        else if (offset == 1) { pkt.setByte(mask.read()); }
+        pkt.makeAtomicResponse();
+        return latency;
+    }
+    b64 write(Packet* pkt) {
+        require(pkt.getSize() == 1);
+        b64 offset = pkt.getAddr() - pioAddr;
+        if (offset == 0) { command.write(pkt.getByte()); }
+        else if (offset == 1) { mask.write(pkt.getByte()); }
+        pkt.makeAtomicResponse();
+        return latency;
+    }
+    void maskAll() { imr = 0xff; }
+    void unmaskAll() { imr = 0; }
+    void handleEOI(int line) {
+        isr &= ~(static_cast<b8>(1) << line);
+        if (irr != 0) { requestInterrupt(findMsb(irr)); }
+    }
+    void requestInterrupt(int line) {
+        if ((isr >> line) == 0) {
+            if (output.empty() == 0) {
+                for (int i = 0; i < output.size(); ++i) {
+                    output.at(i).raise();
+                    output.at(i).lower();
+                }
+            } else { warn("Received interrupt but didn't have anyone to tell about it"); }
+        }
+    }
+    void signalInterrupt(int line) {
+        fatalIf(line >= 8, "I8259 interrupt line does not exist");
+        if (((imr >> line) & 1) == 0) {
+            irr |= static_cast<b8>(1) << line;
+            requestInterrupt(line);
+        }
+    }
+    void raiseInterruptPin(int number) {
+        fatalIf(number >= 8, "I8259 interrupt line does not exist");
+        if (pinStates.at(number) == 0) { signalInterrupt(number); }
+        pinStates.set(number, 1);
+    }
+    void lowerInterruptPin(int number) {
+        fatalIf(number >= 8, "I8259 interrupt line does not exist");
+        pinStates.set(number, 0);
+    }
+    int getVector() {
+        int line = findMsb(irr);
+        irr &= ~(static_cast<b8>(1) << line);
+        if (autoEOI) { handleEOI(line); }
+        else { isr |= static_cast<b8>(1) << line; }
+        if (slave != 0) {
+            if (((cascadeBits >> line) & 1) != 0) { return slave.getVector(); }
+        }
+        return line | vectorOffset;
+    }
+    void serialize(CheckpointOut& cp) const {
+        saveArray(cp, "pinStates", pinStates);
+        saveScalar(cp, "mode", mode);
+        saveScalar(cp, "IRR", irr);
+        saveScalar(cp, "ISR", isr);
+        saveScalar(cp, "IMR", imr);
+        saveScalar(cp, "vectorOffset", vectorOffset);
+        saveScalar(cp, "cascadeMode", cascadeMode);
+        saveScalar(cp, "cascadeBits", cascadeBits);
+        saveScalar(cp, "edgeTriggered", edgeTriggered);
+        saveScalar(cp, "readIRR", readIRR);
+        saveScalar(cp, "expectICW4", expectICW4);
+        saveScalar(cp, "initControlWord", initControlWord);
+        saveScalar(cp, "autoEOI", autoEOI);
+    }
+    void unserialize(CheckpointIn& cp) {
+        loadArray(cp, "pinStates", pinStates);
+        mode = static_cast<int>(loadScalar(cp, "mode"));
+        irr = static_cast<b8>(loadScalar(cp, "IRR"));
+        isr = static_cast<b8>(loadScalar(cp, "ISR"));
+        imr = static_cast<b8>(loadScalar(cp, "IMR"));
+        vectorOffset = static_cast<b8>(loadScalar(cp, "vectorOffset"));
+        cascadeMode = static_cast<bool>(loadScalar(cp, "cascadeMode"));
+        cascadeBits = static_cast<b8>(loadScalar(cp, "cascadeBits"));
+        edgeTriggered = static_cast<bool>(loadScalar(cp, "edgeTriggered"));
+        readIRR = static_cast<bool>(loadScalar(cp, "readIRR"));
+        expectICW4 = static_cast<bool>(loadScalar(cp, "expectICW4"));
+        initControlWord = static_cast<int>(loadScalar(cp, "initControlWord"));
+        autoEOI = static_cast<bool>(loadScalar(cp, "autoEOI"));
+    }
+}

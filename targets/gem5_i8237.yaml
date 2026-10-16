@@ -1,0 +1,44 @@
+name: gem5_i8237
+devices:
+- I8237
+namespace: gem5::X86ISA
+base: BasicPioDevice
+register_backend: gem5_bank
+ctor_base_args: params, 16
+includes:
+- <algorithm>
+- <array>
+- <cassert>
+- <cstring>
+- <functional>
+- <map>
+- <memory>
+- <string>
+- <vector>
+- base/logging.hh
+- dev/io_device.hh
+- mem/packet_access.hh
+- params/I8237.hh
+- sim/serialize.hh
+- dev/reg_bank.hh
+inherited_fields:
+- pioAddr
+- pioSize
+- pioDelay
+- sys
+env:
+  require: assert
+  panicIf: panic_if
+  fatalIf: fatal_if
+  fail: panic
+  toString: std::to_string
+  rangeSize: RangeSize
+  AddrRangeList.push: push_back
+  newSourcePin: new IntSourcePinBase
+  newSinkPin: new IntSinkPinBase
+  basicInit: BasicPioDevice::init
+public_declarations: |
+  using Register = RegisterBankLE::Register8;
+packet:
+  latency: latency
+  response: atomic

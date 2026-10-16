@@ -1,0 +1,58 @@
+name: gem5_i8254
+devices:
+- I8254
+namespace: gem5::X86ISA
+base: BasicPioDevice
+register_backend: custom
+ctor_base_args: params, 4
+includes:
+- <algorithm>
+- <array>
+- <cassert>
+- <cstring>
+- <functional>
+- <map>
+- <memory>
+- <string>
+- <vector>
+- base/logging.hh
+- dev/io_device.hh
+- mem/packet_access.hh
+- params/I8254.hh
+- sim/serialize.hh
+- dev/intpin.hh
+- dev/intel_8254_timer.hh
+inherited_fields:
+- pioAddr
+- pioSize
+- pioDelay
+- sys
+declarations: |
+  // Connect the shared PIT engine's virtual hook to a PLOD callback.
+  class CallbackIntel8254Timer : public Intel8254Timer {
+      std::function<void(unsigned)> callback;
+      void counterInterrupt(unsigned num) override { callback(num); }
+    public:
+      CallbackIntel8254Timer(EventManager* owner, const std::string& name,
+                            std::function<void(unsigned)> cb)
+          : Intel8254Timer(owner, name), callback(std::move(cb)) {}
+  };
+port_body: |-
+  if (if_name == "int_pin") return *intPin.at(idx);
+  return BasicPioDevice::getPort(if_name, idx);
+env:
+  require: assert
+  panicIf: panic_if
+  fatalIf: fatal_if
+  fail: panic
+  toString: std::to_string
+  rangeSize: RangeSize
+  AddrRangeList.push: push_back
+  newSourcePin: new IntSourcePinBase
+  newSinkPin: new IntSinkPinBase
+  basicInit: BasicPioDevice::init
+  Timer: CallbackIntel8254Timer
+packet:
+  latency: latency
+  width: 1
+  response: atomic

@@ -19,9 +19,45 @@ So every ruby tool or script can be run using `bundle exec`, for example:
 bundle exec ruby tools/some_tool.rb
 ```
 
+Device toolchain (Plod)
+-----------------------
 
+Devices are described in the C-like `.pld` language and translated into
+the Ruby DSL consumed by the `plod` CLI:
+
+```bash
+bundle exec exe/plod translate lib/Devices/uart8250.pld # .pld -> .rb (sibling file)
+bundle exec exe/plod check lib/Devices/uart8250.rb      # parse + type-check
+bundle exec exe/plod ir lib/Devices/clint.rb            # dump IR as YAML/JSON
+bundle exec exe/plod build lib/Devices/uart8250.rb \    # generate a gem5-style C++ header
+     -d Uart8250 -o Uart8250.hh
+bundle exec exe/plod targets                            # list backend targets
+```
+
+`lib/Devices/uart8250.rb` is generated from `uart8250.pld`; edit the `.pld`
+source and re-run `translate` to change it.
+
+PLIC and legacy VirtIO MMIO ports are available in `lib/Devices/plic.rb`
+and `lib/Devices/vio_mmio.rb`. They generate `Plic.hh` and `MmioVirtIO.hh`,
+including PLIC timing and checkpoint behavior.
+
+All five x86 `i8*` devices are available as `lib/Devices/i8042.rb`,
+`i82094aa.rb`, `i8237.rb`, `i8254.rb` and `i8259.rb`. They preserve the
+source devices' MMIO, interrupts and checkpoint behavior, and use gem5's
+shared PS/2, PIT and interrupt transport dependencies.
+
+Edit these seven Ruby descriptions directly. Their packet adapters and
+checkpoint methods are generated from register declarations, target packet
+policies and Ruby `Checkpoint` blocks. The existing `.pld` siblings are
+historical snapshots and are not used to regenerate these descriptions.
+
+See [docs/plod.md](docs/plod.md) for the language reference and port commands.
 
 Tests
 -----
 
+```bash
+bundle exec rake test            # core, frontend, sema, backend, API contract, header compilation
+bundle exec rake golden:update   # refresh golden C++ headers after intentional changes
+```
 

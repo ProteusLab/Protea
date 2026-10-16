@@ -1,0 +1,47 @@
+name: gem5_plic
+devices: [Plic]
+base: PlicBase
+register_backend: gem5_bank
+# Keep the reference PLIC's zero-size register padding and insertion order.
+preserve_zero_padding: true
+includes:
+  - '<algorithm>'
+  - '<array>'
+  - '<cassert>'
+  - '<cstring>'
+  - '<functional>'
+  - '<map>'
+  - '<memory>'
+  - '<string>'
+  - '<vector>'
+  - base/logging.hh
+  - cpu/base.hh
+  - dev/io_device.hh
+  - dev/reg_bank.hh
+  - mem/packet.hh
+  - mem/packet_access.hh
+  - params/Plic.hh
+  - params/PlicBase.hh
+  - sim/eventq.hh
+  - sim/serialize.hh
+  - sim/system.hh
+inherited_fields: [pioDelay, pioSize]
+declarations: |
+  class PlicBase : public BasicPioDevice {
+    public:
+      using Params = PlicBaseParams;
+      PlicBase(const Params& params) : BasicPioDevice(params, params.pio_size) {}
+      virtual void post(int src_id) = 0;
+      virtual void clear(int src_id) = 0;
+  };
+env:
+  require: assert
+  fatalIf: fatal_if
+  toString: std::to_string
+  makeCycles: Cycles
+  scheduleEvent: schedule
+  basicInit: BasicPioDevice::init
+packet:
+  latency: pioDelay
+  atomic_swap: true
+  after_write: [propagateOutput, updateInt]

@@ -1,0 +1,413 @@
+/*
+ * Copyright (c) 2021 Huawei International
+ * Copyright (c) 2023 Google LLC
+ * All rights reserved
+ *
+ * The license below extends only to copyright in the software and shall
+ * not be construed as granting a license to any other intellectual
+ * property including but not limited to intellectual property relating
+ * to a hardware implementation of the functionality of the software
+ * licensed hereunder.  You may use the software subject to the license
+ * terms below provided that you ensure that this notice is replicated
+ * unmodified and in its entirety in all distributions of the software,
+ * modified or unmodified, in source code or in binary form.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met: redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer;
+ * redistributions in binary form must reproduce the above copyright
+ * notice, this list of conditions and the following disclaimer in the
+ * documentation and/or other materials provided with the distribution;
+ * neither the name of the copyright holders nor the names of its
+ * contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+abstract struct BaseCPU {
+    void postInterrupt(int tid, int interrupt, int index);
+    void clearInterrupt(int tid, int interrupt, int index);
+}
+abstract struct ThreadContext {
+    BaseCPU* getCpuPtr();
+    int threadId();
+}
+abstract struct Threads {
+    ThreadContext* at(int index);
+}
+abstract struct System {
+    Threads threads;
+}
+abstract struct PlicParams {
+    System* system;
+    int n_src;
+    int n_contexts;
+    string hart_config;
+    b64 output_latency;
+    string name;
+}
+abstract struct EventFunctionWrapper {
+    bool scheduled();
+}
+abstract struct Packet {
+    void makeResponse();
+}
+abstract struct Cycles {}
+abstract struct CheckpointOut {}
+abstract struct CheckpointIn {}
+abstract Cycles makeCycles(b64 cycles);
+abstract b64 clockEdge(Cycles cycles);
+abstract bool isAtomicSwap(Packet* pkt);
+abstract void applyAtomic(Packet* pkt);
+abstract void require(bool condition);
+abstract void fatalIf(bool condition, string message);
+abstract void warn(string message);
+abstract string toString(int value);
+abstract void saveWord(CheckpointOut& cp, string key, b32 value);
+abstract void saveTick(CheckpointOut& cp, string key, b64 value);
+abstract void saveVector(CheckpointOut& cp, string key, vector<b32>& value);
+abstract b32 loadWord(CheckpointIn& cp, string key);
+abstract b64 loadTick(CheckpointIn& cp, string key);
+abstract void loadVector(CheckpointIn& cp, string key, vector<b32>& value);
+
+struct PlicContext {
+    b32 hart;
+    int interrupt;
+}
+struct PlicOutput {
+    vector<b32> maxID;
+    vector<b32> maxPriority;
+}
+
+device Plic {
+    const int int_ext_machine = 11;
+    const int int_ext_super = 9;
+
+    System* system;
+    int nSrc;
+    int nSrc32;
+    vector<PlicContext> contextConfigs;
+    b64 outputLatency;
+    vector<b32> pendingPriority;
+    vector<vector<b32>> effPriority;
+    vector<b32> lastID;
+    PlicOutput output;
+    map<b64, PlicOutput> outputQueue;
+    auto updateCallback = []{ updateOutput(); };
+    EventFunctionWrapper update;
+
+    abstract b64 pioDelay;
+    abstract b64 pioSize;
+    abstract void initRegisters();
+    abstract void readRegisters(Packet* pkt);
+    abstract void writeRegisters(Packet* pkt);
+    abstract void scheduleEvent(EventFunctionWrapper& event, b64 next_update);
+    abstract void basicInit();
+
+    constructor(PlicParams& params) : system(params.system), nSrc(params.n_src),
+        outputLatency(params.output_latency), update(updateCallback, params.name + ".update") {
+        fatalIf((params.hart_config != "") & (params.n_contexts != 0),
+            "the hart_config and n_contexts can't be set simultaneously");
+        if (params.n_contexts != 0) {
+            initContextFromNContexts(params.n_contexts);
+        }
+        if (params.hart_config != "") {
+            initContextFromHartConfig(params.hart_config);
+        }
+    }
+
+    void initContextFromNContexts(int count) {
+        // The source adds M/S pairs even next_update count is odd.
+        for (int i = 0; i < count; ++i) {
+            if ((i % 2) == 0) {
+                PlicContext context;
+                context.hart = i >> 1;
+                context.interrupt = int_ext_machine;
+                contextConfigs.push(context);
+                context.interrupt = int_ext_super;
+                contextConfigs.push(context);
+            }
+        }
+    }
+
+    void initContextFromHartConfig(string config) {
+        PlicContext context;
+        context.hart = 0;
+        for (int i = 0; i < config.size(); ++i) {
+            b8 c = config.at(i);
+            if (c == 0x2c) {
+                context.hart += 1;
+            } else if (c == 0x4d) {
+                context.interrupt = int_ext_machine;
+                contextConfigs.push(context);
+            } else if (c == 0x53) {
+                context.interrupt = int_ext_super;
+                contextConfigs.push(context);
+            } else {
+                fatalIf(1, "hart_config should not contain this value");
+            }
+        }
+    }
+
+    void init() {
+        nSrc32 = (nSrc + 31) / 32;
+        require(pioSize >= 0x200000 + contextConfigs.size() * 0x1000);
+        require(pioSize <= 0x4000000);
+        initRegisters();
+        pendingPriority.resize(nSrc, 0);
+        effPriority.resize(contextConfigs.size());
+        for (int i = 0; i < contextConfigs.size(); ++i) {
+            effPriority.at(i).resize(nSrc, 0);
+        }
+        lastID.resize(contextConfigs.size(), 0);
+        output.maxID.resize(contextConfigs.size(), 0);
+        output.maxPriority.resize(contextConfigs.size(), 0);
+        basicInit();
+    }
+
+    void post(int src_id) {
+        require((src_id < nSrc) & (src_id >= 0));
+        int word = src_id >> 5;
+        int bit = src_id & 0x1f;
+        pending.set(word, pending.at(word) | (static_cast<b32>(1) << bit));
+        pendingPriority.set(src_id, priority.at(src_id));
+        for (int i = 0; i < contextConfigs.size(); ++i) {
+            if ((enable.at(i * nSrc32 + word) >> bit) & 1) {
+                effPriority.at(i).set(src_id, pendingPriority.at(src_id));
+            } else {
+                effPriority.at(i).set(src_id, 0);
+            }
+        }
+        propagateOutput();
+    }
+
+    void clear(int src_id) {
+        require((src_id < nSrc) & (src_id >= 0));
+        int word = src_id >> 5;
+        int bit = src_id & 0x1f;
+        pending.set(word, pending.at(word) & ~(static_cast<b32>(1) << bit));
+        pendingPriority.set(src_id, 0);
+        for (int i = 0; i < contextConfigs.size(); ++i) {
+            effPriority.at(i).set(src_id, 0);
+        }
+        propagateOutput();
+    }
+
+    register priority: size(4), offset(0), window(0x1000) {
+        layout { repeat(nSrc, 4); }
+        void write(b32 data) {
+            self = data;
+            int word = cid >> 5;
+            int bit = cid & 0x1f;
+            if ((pending.at(word) >> bit) & 1) {
+                pendingPriority.set(cid, data);
+            } else {
+                pendingPriority.set(cid, 0);
+            }
+            for (int i = 0; i < contextConfigs.size(); ++i) {
+                if ((enable.at(i * nSrc32 + word) >> bit) & 1) {
+                    effPriority.at(i).set(cid, pendingPriority.at(cid));
+                } else {
+                    effPriority.at(i).set(cid, 0);
+                }
+            }
+        }
+    }
+
+    register pending: size(4), offset(0x1000), type(ro), window(0x1000) {
+        layout { repeat(nSrc32, 4); }
+    }
+
+    register enable: size(4), offset(0x2000), window(0x1fe000) {
+        layout { repeat(contextConfigs.size(), 0x80); repeat(nSrc32, 4); }
+        void write(b32 data) {
+            self = data;
+            int context = cid / nSrc32;
+            int word = cid % nSrc32;
+            for (int i = 0; i < 32; ++i) {
+                int src_id = (word << 5) + i;
+                if (src_id < nSrc) {
+                    if ((data >> i) & 1) {
+                        effPriority.at(context).set(src_id, pendingPriority.at(src_id));
+                    } else {
+                        effPriority.at(context).set(src_id, 0);
+                    }
+                }
+            }
+        }
+    }
+
+    register threshold: size(4), offset(0x200000) {
+        layout { repeat(contextConfigs.size(), 0x1000); }
+    }
+
+    register claim: size(4), offset(0x200004) {
+        layout { repeat(contextConfigs.size(), 0x1000); }
+        b32 read() {
+            if (lastID.at(cid) == 0) {
+                b32 max_id = output.maxID.at(cid);
+                int word = max_id >> 5;
+                int bit = max_id & 0x1f;
+                if ((pending.at(word) >> bit) & 1) {
+                    lastID.set(cid, max_id);
+                    clear(max_id);
+                    self = max_id;
+                    return self;
+                }
+                return 0;
+            }
+            warn("PLIC claim repeated (not completed)");
+            return lastID.at(cid);
+        }
+        void write(b32 data) {
+            self = data;
+            require(lastID.at(cid) == data);
+            lastID.set(cid, 0);
+            updateInt();
+        }
+    }
+
+    b64 read(Packet* pkt) {
+        bool atomic = isAtomicSwap(pkt);
+        readRegisters(pkt);
+        if (atomic) {
+            applyAtomic(pkt);
+            return write(pkt);
+        }
+        pkt.makeResponse();
+        return pioDelay;
+    }
+
+    b64 write(Packet* pkt) {
+        writeRegisters(pkt);
+        propagateOutput();
+        updateInt();
+        pkt.makeResponse();
+        return pioDelay;
+    }
+
+    void propagateOutput() {
+        PlicOutput new_output;
+        new_output.maxID.resize(contextConfigs.size(), 0);
+        new_output.maxPriority.resize(contextConfigs.size(), 0);
+        for (int i = 0; i < contextConfigs.size(); ++i) {
+            b32 max_id = 0;
+            b32 max_priority = effPriority.at(i).at(0);
+            for (int j = 1; j < nSrc; ++j) {
+                if (effPriority.at(i).at(j) > max_priority) {
+                    max_id = j;
+                    max_priority = effPriority.at(i).at(j);
+                }
+            }
+            new_output.maxID.set(i, max_id);
+            new_output.maxPriority.set(i, max_priority);
+        }
+        b64 next_update = clockEdge(makeCycles(outputLatency));
+        outputQueue.put(next_update, new_output);
+        if (update.scheduled() == 0) {
+            scheduleEvent(update, next_update);
+        }
+    }
+
+    void updateOutput() {
+        output = outputQueue.firstValue();
+        outputQueue.eraseFirst();
+        if (outputQueue.empty() == 0) {
+            scheduleEvent(update, outputQueue.firstKey());
+        }
+        updateInt();
+    }
+
+    void updateInt() {
+        for (int i = 0; i < contextConfigs.size(); ++i) {
+            ThreadContext* tc = system.threads.at(contextConfigs.at(i).hart);
+            b32 max_id = output.maxID.at(i);
+            b32 value = output.maxPriority.at(i);
+            b32 limit = threshold.at(i);
+            if ((value > limit) & (max_id > 0) & (lastID.at(i) == 0)) {
+                tc.getCpuPtr().postInterrupt(tc.threadId(), contextConfigs.at(i).interrupt, 0);
+            } else {
+                tc.getCpuPtr().clearInterrupt(tc.threadId(), contextConfigs.at(i).interrupt, 0);
+            }
+        }
+    }
+
+    void serialize(CheckpointOut& cp) const {
+        for (int i = 0; i < nSrc32; ++i) {
+            saveWord(cp, "pending" + toString(i), pending.at(i));
+        }
+        for (int i = 0; i < nSrc; ++i) {
+            saveWord(cp, "priority" + toString(i), priority.at(i));
+        }
+        for (int i = 0; i < contextConfigs.size(); ++i) {
+            for (int j = 0; j < nSrc32; ++j) {
+                saveWord(cp, "enable" + toString(i) + "_" + toString(j), enable.at(i * nSrc32 + j));
+            }
+            saveWord(cp, "threshold" + toString(i), threshold.at(i));
+            saveWord(cp, "claim" + toString(i), claim.at(i));
+        }
+        map<b64, PlicOutput> queue = outputQueue;
+        for (int i = 0; i < outputQueue.size(); ++i) {
+            PlicOutput snapshot = queue.firstValue();
+            saveTick(cp, "output_tick" + toString(i), queue.firstKey());
+            saveVector(cp, "output_id" + toString(i), snapshot.maxID);
+            saveVector(cp, "output_pri" + toString(i), snapshot.maxPriority);
+            queue.eraseFirst();
+        }
+        saveWord(cp, "n_outputs", outputQueue.size());
+        saveVector(cp, "output.maxID", output.maxID);
+        saveVector(cp, "output.maxPriority", output.maxPriority);
+        saveVector(cp, "pendingPriority", pendingPriority);
+        for (int i = 0; i < contextConfigs.size(); ++i) {
+            saveVector(cp, "effPriority" + toString(i), effPriority.at(i));
+        }
+        saveVector(cp, "lastID", lastID);
+    }
+
+    void unserialize(CheckpointIn& cp) {
+        b32 n_outputs = loadWord(cp, "n_outputs");
+        for (int i = 0; i < nSrc32; ++i) {
+            pending.set(i, loadWord(cp, "pending" + toString(i)));
+        }
+        for (int i = 0; i < nSrc; ++i) {
+            priority.set(i, loadWord(cp, "priority" + toString(i)));
+        }
+        for (int i = 0; i < contextConfigs.size(); ++i) {
+            for (int j = 0; j < nSrc32; ++j) {
+                enable.set(i * nSrc32 + j, loadWord(cp, "enable" + toString(i) + "_" + toString(j)));
+            }
+            threshold.set(i, loadWord(cp, "threshold" + toString(i)));
+            claim.set(i, loadWord(cp, "claim" + toString(i)));
+        }
+        for (int i = 0; i < n_outputs; ++i) {
+            b64 next_update = loadTick(cp, "output_tick" + toString(i));
+            PlicOutput snapshot;
+            loadVector(cp, "output_id" + toString(i), snapshot.maxID);
+            loadVector(cp, "output_pri" + toString(i), snapshot.maxPriority);
+            outputQueue.put(next_update, snapshot);
+        }
+        if (outputQueue.empty() == 0) {
+            scheduleEvent(update, outputQueue.firstKey());
+        }
+        loadVector(cp, "output.maxID", output.maxID);
+        loadVector(cp, "output.maxPriority", output.maxPriority);
+        loadVector(cp, "pendingPriority", pendingPriority);
+        for (int i = 0; i < contextConfigs.size(); ++i) {
+            loadVector(cp, "effPriority" + toString(i), effPriority.at(i));
+        }
+        loadVector(cp, "lastID", lastID);
+        updateInt();
+    }
+}

@@ -1,0 +1,28 @@
+name: gem5_uart
+devices: [Uart8250, ns16550]
+base: BasicPioDevice
+ctor_base_args: "params, params.pio_size"
+includes:
+  - "<string>"
+  - "<vector>"
+  - base/inifile.hh
+  - base/trace.hh
+  - debug/Uart.hh
+  - dev/platform.hh
+  - mem/packet.hh
+  - mem/packet_access.hh
+  - sim/serialize.hh
+  - base/bitunion.hh
+  - base/logging.hh
+  - dev/io_device.hh
+  - dev/reg_bank.hh
+  - dev/serial/uart.hh
+forward_decls:
+  - "class Terminal;"
+  - "class Platform;"
+port_body: |
+  return BasicPioDevice::getPort(if_name, idx);
+init_body: |
+  BasicPioDevice::init();
+env:
+  ns: sim_clock::as_int::ns

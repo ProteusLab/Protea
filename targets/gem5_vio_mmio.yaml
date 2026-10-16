@@ -1,0 +1,36 @@
+name: gem5_vio_mmio
+devices: [MmioVirtIO]
+namespace: gem5::RiscvISA
+params_type: RiscvMmioVirtIOParams
+base: PlicIntDevice
+register_backend: word
+includes:
+  - '<array>'
+  - '<cstring>'
+  - '<functional>'
+  - '<map>'
+  - '<string>'
+  - '<vector>'
+  - base/logging.hh
+  - dev/riscv/plic_device.hh
+  - dev/virtio/base.hh
+  - mem/packet_access.hh
+  - params/RiscvMmioVirtIO.hh
+inherited_fields: [platform, _interruptID, pioAddr]
+env:
+  warnOnce: warn_once
+  panicIf: panic_if
+  fail: panic
+packet:
+  latency: 0
+  width: 4
+  check: panic
+  denied: warn
+  read_response: before_payload
+  write_response: before_dispatch
+  forward:
+    start: 256
+    receiver: vio
+    read: readConfig
+    write: writeConfig
+    latency: 0

@@ -12,6 +12,11 @@
 /.vscode/
 /.ruby-lsp/
 /.cache/
+/sim_lib/generated
+IR.json
+IR.yaml
+uart.hh
+/lib/Devices/serial.c
 
 # Used by dotenv library to load environment variables.
 # .env

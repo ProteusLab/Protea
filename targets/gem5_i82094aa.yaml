@@ -1,0 +1,92 @@
+name: gem5_i82094aa
+devices:
+- I82094AA
+namespace: gem5::X86ISA
+base: BasicPioDevice
+register_backend: custom
+ctor_base_args: params, 20
+includes:
+- <algorithm>
+- <array>
+- <cassert>
+- <cstring>
+- <functional>
+- <map>
+- <memory>
+- <string>
+- <vector>
+- base/logging.hh
+- dev/io_device.hh
+- mem/packet_access.hh
+- params/I82094AA.hh
+- sim/serialize.hh
+- dev/intpin.hh
+- arch/x86/intmessage.hh
+- arch/x86/interrupts.hh
+- arch/x86/regs/apic.hh
+- dev/x86/intdev.hh
+- sim/system.hh
+- cpu/base.hh
+- base/bitunion.hh
+inherited_fields:
+- pioAddr
+- pioSize
+- pioDelay
+- sys
+forward_decls:
+- class I82094AA;
+declarations: |
+  // Bind a message by value while the interrupt transport owns the packet.
+  template <typename M, typename P>
+  std::function<void(P)> plodBindMessage(const std::function<void(M, P)>& callback, M message) {
+      return [callback, message](P pkt) { callback(message, pkt); };
+  }
+port_body: |-
+  if (if_name == "int_requestor") return intRequestPort;
+  if (if_name == "inputs") return *inputs.at(idx);
+  return BasicPioDevice::getPort(if_name, idx);
+env:
+  Packet.getByte: getLE<uint8_t>
+  require: assert
+  panicIf: panic_if
+  fatalIf: fatal_if
+  fail: panic
+  toString: std::to_string
+  rangeSize: RangeSize
+  AddrRangeList.push: push_back
+  newSourcePin: new IntSourcePinBase
+  newSinkPin: new IntSinkPinBase
+  basicInit: BasicPioDevice::init
+  TriggerMessage: TriggerIntMessage
+  RequestPort: IntRequestPort<I82094AA>
+  LocalApic: Interrupts
+  localApic: dynamic_cast<Interrupts*>
+  makeMessage: TriggerIntMessage
+  buildAck: buildIntAcknowledgePacket
+  buildTrigger: buildIntTriggerPacket
+  freePacket: delete
+  bindMessage: plodBindMessage
+  logicalDestinationReg: APIC_LOGICAL_DESTINATION
+  RequestPort.sendCallback: sendMessage
+public_declarations: |
+  BitUnion64(RedirTableEntry)
+      Bitfield<63, 32> topDW;
+      Bitfield<55, 32> topReserved;
+      Bitfield<31, 0> bottomDW;
+      Bitfield<31, 17> bottomReserved;
+      Bitfield<63, 56> dest;
+      Bitfield<16> mask;
+      Bitfield<15> trigger;
+      Bitfield<14> remoteIRR;
+      Bitfield<13> polarity;
+      Bitfield<12> deliveryStatus;
+      Bitfield<11> destMode;
+      Bitfield<10, 8> deliveryMode;
+      Bitfield<7, 0> vector;
+  EndBitUnion(RedirTableEntry)
+
+  bool recvResponse(PacketPtr pkt);
+packet:
+  latency: pioDelay
+  width: 4
+  response: atomic
