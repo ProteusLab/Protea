@@ -1,10 +1,3 @@
-# LIRA: data-flow IR (Ruby library used by the IR serializers)
-CPMAddPackage(
-  NAME lira
-  GITHUB_REPOSITORY ProteusLab/LIRA
-  GIT_TAG v0.1.1
-  EXCLUDE_FROM_ALL True)
-
 # elfio: ELF Loader Library
 CPMAddPackage(
   NAME elfio
