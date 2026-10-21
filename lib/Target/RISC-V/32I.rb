@@ -43,6 +43,9 @@ module RV32I
         r32 :x29
         r32 :x30
         r32 :x31
+    }
+
+    RegisterFile(:'Program Counter') {
         r32  :pc, pc
     }
 
@@ -287,6 +290,12 @@ module RV32I
     Instruction(:fence) {
         encoding :E, [field(:c1, 31, 28, 0b0000), field(:c2, 27, 24), field(:c3, 23, 20), field(:c4, 19, 0, 0b00000000000000001111)]
         asm { "fence" }
+        code { }
+    }
+
+    Instruction(:fence_i) {
+        encoding :E, [field(:c, 31, 0, 0b00000000000000000001000000001111)]
+        asm { "fence.i" }
         code { }
     }
 end
