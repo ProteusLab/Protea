@@ -1,6 +1,6 @@
 # lira/lira_utils.rb
 
-require_relative '../lira/ir_ops'
+require 'lira/ir_ops'
 
 module ADLToLiraUtils
 

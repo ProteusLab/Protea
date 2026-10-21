@@ -3,7 +3,7 @@
 
 $LOAD_PATH.unshift File.dirname(__FILE__)
 
-require_relative '../lib/lira/arch_ser_yaml'
+require 'lira/arch_ser_yaml'
 
 arch = Lira::ArchSerYaml.read_arch(ARGV[0])
 require "Target/#{arch.name}/cpp_ops"

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative '../lib/lira/ir'
+require 'lira/ir'
 require_relative 'cpp_ops'
 require_relative '../lib/Utility/helper_cpp'
 

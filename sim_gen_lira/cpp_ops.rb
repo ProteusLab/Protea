@@ -1,4 +1,4 @@
-require_relative '../lib/lira/ir_ops'
+require 'lira/ir_ops'
 require_relative '../lib/Utility/helper_cpp'
 
 module Lira

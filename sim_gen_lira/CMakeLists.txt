@@ -34,7 +34,7 @@ add_custom_command(
   OUTPUT ${PROTEA_SIMGEN_OUTPUT_FILES}
   DEPENDS ${LIRA_IR_FILE} ${CMAKE_CURRENT_SOURCE_DIR}/sim_gen.rb
   COMMAND ${CMAKE_COMMAND} -E make_directory ${OUTPUT_DIR}
-  COMMAND cd ${OUTPUT_DIR} && ${BUNDLE_PATH} exec ruby ${CMAKE_CURRENT_SOURCE_DIR}/sim_gen.rb ${LIRA_IR_FILE}
+  COMMAND cd ${OUTPUT_DIR} && ${CMAKE_COMMAND} -E env "RUBYLIB=${lira_SOURCE_DIR}/ruby" ${BUNDLE_PATH} exec ruby ${CMAKE_CURRENT_SOURCE_DIR}/sim_gen.rb ${LIRA_IR_FILE}
   COMMENT "Generating LIRA simulator sources from ${LIRA_IR_FILE}"
 )
 

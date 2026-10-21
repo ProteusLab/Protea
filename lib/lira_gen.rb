@@ -3,12 +3,12 @@
 
 require_relative 'ADL/base'
 require_relative 'ADL/builder'
-require_relative 'lira/arch'
-require_relative 'lira/ir'
-require_relative 'lira/ir_builder'
-require_relative 'lira/ir_ops'
-require_relative 'lira/arch_ser_yaml'
-require_relative 'lira/ir_ser_txt'
+require 'lira/arch'
+require 'lira/ir'
+require 'lira/ir_builder'
+require 'lira/ir_ops'
+require 'lira/arch_ser_yaml'
+require 'lira/ir_ser_txt'
 require_relative 'Utility/lira_utils'
 
 class LiraSerializer
@@ -475,10 +475,9 @@ class LiraSerializer
 
     base = @builder.const(0, 32)
     instr.fields.each do |field|
-      lo = field.from
-      hi = field.to
+      lo = field.to
+      hi = field.from
       width = hi - lo + 1
-      width = 1 if width < 1
       field_var_name = field.value.name.to_s
       value_num = field.value.value
       if value_num
@@ -604,8 +603,8 @@ class LiraSerializer
       @arch_builder.add_env_func(lira_ef)
     end
 
-    @arch_builder.add_env_func(Lira::EnvironmentFunction.new('getPC', [], [], [32]))
-    @arch_builder.add_env_func(Lira::EnvironmentFunction.new('setPC', [], [32], []))
+    @arch_builder.add_env_func(Lira::EnvironmentFunction.new('getPC', ['pc'], [], [32]))
+    @arch_builder.add_env_func(Lira::EnvironmentFunction.new('setPC', ['pc'], [32], []))
 
     SimInfra.class_variable_get(:@@instructions).each do |instr|
       begin

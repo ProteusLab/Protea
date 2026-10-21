@@ -19,6 +19,10 @@ add_custom_target(native_gen DEPENDS ${NATIVE_IR_FILE})
 
 set(LIRA_IR_FILE ${CMAKE_CURRENT_BINARY_DIR}/lira.yaml)
 
+file(GLOB LIRA_RUBY_GENERATOR_DEPS CONFIGURE_DEPENDS
+     "${lira_SOURCE_DIR}/ruby/lira.rb"
+     "${lira_SOURCE_DIR}/ruby/lira/*.rb")
+
 add_custom_command(
   OUTPUT ${LIRA_IR_FILE}
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/lira_gen.rb
@@ -30,15 +34,11 @@ add_custom_command(
           ${CMAKE_CURRENT_SOURCE_DIR}/Target/RISC-V/encoding.rb
           ${CMAKE_CURRENT_SOURCE_DIR}/Target/RISC-V/32I.rb
           ${CMAKE_CURRENT_SOURCE_DIR}/Target/RISC-V/32M.rb
-          ${CMAKE_CURRENT_SOURCE_DIR}/lira/arch.rb
-          ${CMAKE_CURRENT_SOURCE_DIR}/lira/ir.rb
-          ${CMAKE_CURRENT_SOURCE_DIR}/lira/ir_builder.rb
-          ${CMAKE_CURRENT_SOURCE_DIR}/lira/ir_ops.rb
-          ${CMAKE_CURRENT_SOURCE_DIR}/lira/arch_ser_yaml.rb
-          ${CMAKE_CURRENT_SOURCE_DIR}/lira/ir_ser_txt.rb
           ${CMAKE_CURRENT_SOURCE_DIR}/Utility/lira_utils.rb
           ${CMAKE_CURRENT_SOURCE_DIR}/Utility/type.rb
-  COMMAND ${BUNDLE_PATH} exec ruby ${CMAKE_CURRENT_SOURCE_DIR}/lira_gen.rb
+          ${LIRA_RUBY_GENERATOR_DEPS}
+  COMMAND ${CMAKE_COMMAND} -E env "RUBYLIB=${lira_SOURCE_DIR}/ruby"
+          ${BUNDLE_PATH} exec ruby ${CMAKE_CURRENT_SOURCE_DIR}/lira_gen.rb
                           --target ${CMAKE_SOURCE_DIR}/lib/Target/RISC-V/
                           --output ${LIRA_IR_FILE}
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
