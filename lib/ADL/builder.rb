@@ -129,7 +129,7 @@ module SimInfra
     class InterfaceBuilder
         include SimInfra
 
-        def function(name, output_types = [], input_types = [])
+        def Function(name, output_types = [], input_types = [])
             @@interface_functions << {:name => name, :return_types => output_types, :argument_types => input_types}
         end
     end

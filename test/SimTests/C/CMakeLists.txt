@@ -1,0 +1,38 @@
+project(c-simtests)
+
+if(PROTEA_BUILD_TESTS)
+  string(TOLOWER ${TARGET_NAME} TARGET_NAME_LOWER)
+  set(TARGET_TOOLCHAIN_FILE ${protea_SOURCE_DIR}/cmake/toolchain/${TARGET_NAME_LOWER}.cmake)
+  set(DEFAULT_ARGS
+      -DTARGET_NAME=${TARGET_NAME}
+      -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
+      -DCMAKE_BUILD_TYPE:STRING=Release
+      -DCMAKE_TOOLCHAIN_FILE:PATH=${TARGET_TOOLCHAIN_FILE})
+  if (DEFINED ${TARGET_NAME}_TOOLCHAIN_DIR)
+    list(APPEND DEFAULT_ARGS -D${TARGET_NAME}_TOOLCHAIN_DIR:PATH=${${TARGET_NAME}_TOOLCHAIN_DIR})
+  endif()
+
+  set(TESTS_BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/CImpl)
+  set(OUTPUT_TESTS_DIR ${CMAKE_CURRENT_BINARY_DIR}/CImpl/bin)
+  set(GENERATED_SIM_BIN_PATH ${protea_simgen_BINARY_DIR}/sim)
+
+  ExternalProject_Add(
+    c-simtestsimpl
+    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/CImpl
+    BINARY_DIR ${TESTS_BINARY_DIR}
+    CONFIGURE_HANDLED_BY_BUILD True
+    BUILD_ALWAYS True
+    CMAKE_ARGS ${DEFAULT_ARGS}
+    INSTALL_COMMAND "")
+
+  set(RunTests ${tests-common_SOURCE_DIR}/RunTests.py)
+
+  set(DISCOVER_SCRIPT "${CMAKE_CURRENT_BINARY_DIR}/discover_generated_tests.cmake")
+  configure_file(
+    "${CMAKE_SOURCE_DIR}/cmake/discover_generated_tests.cmake.in"
+    "${DISCOVER_SCRIPT}"
+    @ONLY
+  )
+
+  set_property(DIRECTORY APPEND PROPERTY TEST_INCLUDE_FILES "${DISCOVER_SCRIPT}")
+endif()

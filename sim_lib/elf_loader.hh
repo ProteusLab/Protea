@@ -12,11 +12,14 @@
 
 // NOLINTNEXTLINE
 namespace ELFIO {
+
 // forward decl
 class elfio;
+
 } // namespace ELFIO
 
 namespace prot::elf_loader {
+
 class ElfLoader {
 public:
   explicit ElfLoader(std::istream &stream);
@@ -35,6 +38,7 @@ private:
 
   std::unique_ptr<ELFIO::elfio> m_elf;
 };
+
 } // namespace prot::elf_loader
 
 #endif // PROT_ELF_LOADER_HH_INCLUDED

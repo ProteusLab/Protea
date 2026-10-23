@@ -83,7 +83,7 @@ module CodeGen
         @emitter.emit_line("#{dst} = #{src};")
       when :new_var
         var_name = operation[:oprnds][0][:name]
-        var_type = Utility::HelperCpp.gen_type(operation[:oprnds][0][:type])
+        var_type = Utility::HelperCpp.gen_small_type(operation[:oprnds][0][:type])
         @emitter.emit_line("#{var_type} #{var_name};")
       when :cast
         dst = @mapping[operation[:oprnds][0][:name]] || operation[:oprnds][0][:name]

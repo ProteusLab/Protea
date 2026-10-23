@@ -1,0 +1,23 @@
+if(NOT EXISTS "@OUTPUT_TESTS_DIR@")
+  message(STATUS "Test directory does not exist yet: @OUTPUT_TESTS_DIR@")
+  return()
+endif()
+
+file(GLOB discovered_tests "@OUTPUT_TESTS_DIR@/*")
+
+if(NOT discovered_tests)
+  message(STATUS "No generated tests found in @OUTPUT_TESTS_DIR@")
+endif()
+
+foreach(test_file IN LISTS discovered_tests)
+  if(IS_DIRECTORY "${test_file}")
+    continue()
+  endif()
+
+  get_filename_component(test_name "${test_file}" NAME)
+
+  add_test(
+    "@PROJECT_NAME@.${test_name}"
+    "@GENERATED_SIM_BIN_PATH@" --propagate-exit "${test_file}"
+  )
+endforeach()

@@ -60,7 +60,7 @@ module SimGen
         "cpu.m_memory->read<#{Utility::HelperCpp.gen_small_type(dst[:type])}>(#{addr})"
       end
 
-      def generate_exec_function(instruction)
+      def generate_exec_function(instruction, funcs)
         emitter = Utility::GenEmitter.new
         operand_map = map_operands(instruction)
 
@@ -68,8 +68,13 @@ module SimGen
         emitter.increase_indent
 
         gen = CodeGen::CppGenerator.new(emitter, operand_map)
+        funcs_name = funcs.map { |func| func[:name] }
         instruction[:code][:tree].each do |node|
-          gen.generate_statement(node)
+          if funcs_name.include?(node[:name])
+            emitter.emit_line("cpu.#{node[:name]}(#{node[:oprnds].map { |op| op[:name] }.join(', ')});")
+          else
+            gen.generate_statement(node)
+          end
         end
         emitter.decrease_indent
         emitter.emit_line('}')
@@ -80,7 +85,7 @@ module SimGen
       def generate_exec_functions(input_ir)
         emitter = Utility::GenEmitter.new
         input_ir[:instructions].each do |instruction|
-          temp_emitter = generate_exec_function(instruction)
+          temp_emitter = generate_exec_function(instruction, input_ir[:interface_functions])
           emitter.concat(temp_emitter)
         end
         emitter

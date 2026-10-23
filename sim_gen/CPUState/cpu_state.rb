@@ -121,27 +121,37 @@ module SimGen
       def generate_do_exit_func
         emitter = Utility::GenEmitter.new
         emitter.emit_line('// Function to stop the CPU execution')
-        emitter.emit_line('void doExit() {')
+        emitter.emit_line('void doExit(isa::Word code) {')
         emitter.increase_indent
         emitter.emit_line('m_finished = true;')
+        emitter.emit_line('m_code = code;')
+        emitter.emit_line("fmt::println(\"Exiting with code {}...\", code);")
         emitter.decrease_indent
         emitter.emit_line('}')
         emitter.increase_indent_all(2)
         emitter
       end
 
-      def generate_dump_func(regfiles)
-        emitter = Utility::GenEmitter.new
-        emitter.emit_line("void CPU::dump(std::ostream &ost) const {")
-        emitter.increase_indent
+      def gen_input_args(args)
+        args.map { |arg| Utility::HelperCpp.gen_type(arg) }.join(', ')
+      end
 
-        emitter.emit_line("fmt::println(ost, \"---CPU STATE DUMP---\");")
-        regfiles.each do |regfile|
-          regfile[:regs].each do |register|
-            emitter.emit_line("fmt::print(ost, \"X[{:02}] = {:#010x} \", effIdx, get#{regfile[:name]}());")
+      def generate_interface_func(interface_functions)
+        emitter = Utility::GenEmitter.new
+
+        emitter.emit_line('// Interface functions')
+        interface_functions.each do |ifunc|
+
+          if ifunc[:return_types].size == 0
+            emitter.emit_line("void #{ifunc[:name]}(#{gen_input_args(ifunc[:argument_types])});")
+          elsif ifunc[:return_types].size == 1
+            emitter.emit_line("#{gen_input_args(ifunc[:return_types])} #{ifunc[:name]}(#{gen_input_args(ifunc[:argument_types])});")
+          else
+            emitter.emit_line("std::tuple<#{gen_input_args(ifunc[:return_types])}> #{ifunc[:name]}(#{gen_input_args(ifunc[:argument_types])});")
           end
         end
-
+        emitter.emit_blank_line
+        emitter.increase_indent_all(2)
         emitter
       end
     end
@@ -163,6 +173,7 @@ module SimGen
         readreg_funcs = Helper.generate_read_reg_functions(input_ir[:regfiles])
         do_exit_func = Helper.generate_do_exit_func
         increase_icount_func = Helper.increase_icount_func
+        interface_func = Helper.generate_interface_func(input_ir[:interface_functions])
 
         base_type = Utility::HelperCpp.gen_type input_ir[:regfiles][0][:regs][0][:size]
 "#ifndef GENERATED_#{input_ir[:isa_name].upcase}_CPUSTATE_HH_INCLUDED
@@ -173,6 +184,8 @@ module SimGen
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <fmt/core.h>
+#include <fmt/ostream.h>
 
 namespace prot::memory {
 class Memory;
@@ -194,16 +207,15 @@ public:
   // Finished flag
   bool m_finished{false};
 
+  // Exit code
+  isa::Word m_code{0};
+
   explicit CPU(Memory *mem) : m_memory(mem) {}
 
 #{setreg_funcs}
 #{readreg_funcs}
 #{pc_functions}
-  #{base_type} getSysCallNum() const;
-  #{base_type} getSysCallArg(std::size_t num) const;
-  #{base_type} getSysCallRet() const;
-  void emulateSysCall();
-
+#{interface_func}
 #{do_exit_func}
 
 #{increase_icount_func}
