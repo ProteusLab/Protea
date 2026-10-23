@@ -31,6 +31,9 @@ jobs:
     needs: formatting-check
     name: Test
     runs-on: ubuntu-22.04
+    # Build image (Ubuntu-based) with the RISC-V GNU toolchain, QEMU,
+    # CMake, Ninja, clang-format 20, Python 3 and Ruby (including the
+    # "parallel" gem). Built and published by egorshamshura.
     container: 
       image: ghcr.io/egorshamshura/protea-build:latest
     strategy:
