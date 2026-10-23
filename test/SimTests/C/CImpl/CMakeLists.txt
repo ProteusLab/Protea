@@ -11,3 +11,5 @@ endmacro()
 
 add_subdirectory(fib)
 add_subdirectory(qsort)
+add_subdirectory(xorshift32)
+add_subdirectory(zfunc)

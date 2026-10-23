@@ -14,7 +14,7 @@ set(RISCV_TOOLCHAIN_PREFIX
 
 # Target architecture (modify these according to your needs)
 set(RISCV_ARCH
-    "rv32i"
+    "rv32im"
     CACHE STRING "RISC-V architecture")
 set(RISCV_ABI
     "ilp32"

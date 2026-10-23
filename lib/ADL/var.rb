@@ -42,6 +42,9 @@ module SimInfra
   class Var
     def +(other) = @scope.add(self, other)
     def -(other) = @scope.sub(self, other)
+    def *(other) = @scope.mul(self, other)
+    def /(other) = @scope.div(self, other)
+    def %(other) = @scope.rem(self, other)
     def <<(other) = @scope.shl(self, other)
     def <(other) = @scope.lt(self, other)
     def <=(other) = @scope.le(self, other)

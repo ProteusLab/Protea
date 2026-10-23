@@ -2,9 +2,7 @@
 
 #include "isa.hh"
 
-#include <algorithm>
 #include <cassert>
-#include <vector>
 
 extern "C" {
 #include <sys/mman.h>
@@ -69,12 +67,12 @@ public:
   }
 
   void writeBlock(std::span<const std::byte> src, isa::Addr addr) override {
-    // checkRange(addr, src.size());
+    checkRange(addr, src.size());
     std::memcpy(translateAddr(addr), src.data(), src.size());
   }
 
   void readBlock(isa::Addr addr, std::span<std::byte> dest) const override {
-    // checkRange(addr, dest.size());
+    checkRange(addr, dest.size());
     std::memcpy(dest.data(), translateAddr(addr), dest.size());
   }
 
