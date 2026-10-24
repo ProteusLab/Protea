@@ -242,27 +242,27 @@ module SimInfra
     end
 
     @@regfiles = []
-    class RegisterFileBuilder
-      attr_reader :info
+class RegisterFileBuilder
+    attr_reader :info
 
-      def initialize(name)
-        @info = RegisterFileInfo.new(name)
-        @info.regs = []
-      end
-
-      def method_missing(name, *args)
-        if name.to_s.start_with?('r')
-          size = name.to_s[1..].to_i
-          instance_eval "def #{name}(sym, *args); @info.regs << Register.new(sym, #{size}, args.size > 0 ? args : []); end", __FILE__, __LINE__
-          @info.regs << Register.new(args[0], size, args.size > 1 ? args[1..] : [])
-        else
-          error "Unknown method #{name}"
-        end
-      end
-
-      def zero = :zero
-      def pc = :pc
+    def initialize(name)
+    @info = RegisterFileInfo.new(name)
+    @info.regs = []
     end
+
+    def method_missing(name, *args)
+    if name.to_s.start_with?('r')
+        size = name.to_s[1..].to_i
+        instance_eval "def #{name}(sym, *args); @info.regs << Register.new(sym, #{size}, args.size > 0 ? args : []); end", __FILE__, __LINE__
+        @info.regs << Register.new(args[0], size, args.size > 1 ? args[1..] : [])
+    else
+        error "Unknown method #{name}"
+    end
+    end
+
+    def zero = :zero
+    def pc = :pc
+end
 
     def RegisterFile(name, &block)
         bldr = RegisterFileBuilder.new(name)
