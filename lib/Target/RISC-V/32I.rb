@@ -45,7 +45,7 @@ module RV32I
         r32 :x31
     }
 
-    RegisterFile(:'Program Counter') {
+    RegisterFile(:ProgramCounter) {
         r32  :pc, pc
     }
 
