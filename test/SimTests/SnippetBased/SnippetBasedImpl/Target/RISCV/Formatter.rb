@@ -13,7 +13,7 @@ module SimTest
       ir[:regfiles].each do |regfile|
         regfile[:regs].each do |reg|
           attrs = reg[:attrs] || []
-          next if attrs.include?(:zero) || attrs.include?(:pc) || reg[:name] == :x2
+          next if attrs.include?("zero") || attrs.include?("pc") || reg[:name] == "x2"
 
           emitter.emit_line "li #{reg[:name]}, 0x#{values[reg[:name]].to_s(16)}"
         end
@@ -32,7 +32,7 @@ module SimTest
       ir[:regfiles].each do |regfile|
         regfile[:regs].each do |reg|
           attrs = reg[:attrs] || []
-          next if attrs.include?(:zero) || attrs.include?(:pc) || reg[:name] == :x1 || reg[:name] == :x2
+          next if attrs.include?("zero") || attrs.include?("pc") || reg[:name] == "x1" || reg[:name] == "x2"
 
           emitter.emit_line "li x1, 0x#{ref_values[reg[:name]].to_s(16)}"
           emitter.emit_line "bne x1, #{reg[:name]}, _fail"

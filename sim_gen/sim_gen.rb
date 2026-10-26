@@ -11,7 +11,17 @@ require 'sim_gen/ExecEngines/llvm_jit'
 
 require 'yaml'
 
-yaml_data = YAML.safe_load_file(ARGV[0], permitted_classes: [Symbol], aliases: true)
+def deep_symbolize(value)
+  case value
+  when Hash then value.transform_keys(&:to_sym).transform_values { |v| deep_symbolize(v) }
+  when Array then value.map { |v| deep_symbolize(v) }
+  when String then value.to_sym
+  else value
+  end
+end
+
+yaml_data = YAML.safe_load_file(ARGV[0], aliases: true)
+yaml_data = deep_symbolize(yaml_data)
 yaml_data[:isa_name] = "RISCV"
 
 File.write('cpu_state.hh', SimGen::CPUState::Header.generate_cpu_state(yaml_data))
