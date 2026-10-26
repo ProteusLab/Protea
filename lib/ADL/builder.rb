@@ -34,7 +34,6 @@ module SimInfra
 
     @@instructions = []
     @@interface_functions = []
-    @@operands = []
 
     def self.interface_functions
         @@interface_functions
@@ -42,13 +41,12 @@ module SimInfra
 
     class InstructionInfo
         attr_accessor :name, :fields, :frmt, :map, :code, :map_code_blocks, :asm_str, :feature,
-                      :operand_map, :operand_list
+                      :operand_map
         def initialize(name, feature)
             @name = name;
             @map_code_blocks = {}
             @feature = feature
             @operand_map = {}
-            @operand_list = []
         end
 
         def to_h
@@ -59,8 +57,7 @@ module SimInfra
                 asm_str: @asm_str,
                 code: @code.to_h,
                 operand_map: @operand_map.transform_values(&:to_h),
-                operand_list: @operand_list,
-                feature: @feature,
+                operand_list: @operand_map.keys,
             }
         end
 
@@ -73,29 +70,24 @@ module SimInfra
             info.code.instance_variable_set(:@tree, h[:code][:tree].map { |s| IrStmt.from_h(s) })
             if h[:operand_map]
                 info.operand_map = h[:operand_map].transform_values { |v| Scope.from_h(v) }
-                info.operand_list = h[:operand_list] || info.operand_map.keys
             end
             info
         end
     end
 
     class OperandInfo
-        attr_accessor :name, :type, :map_proc, :asm_str, :sem_proc
+        attr_accessor :name, :type, :regset, :map_proc
 
-        def initialize(name, type = nil)
+        def initialize(name, type = nil, regset = nil)
             @name = name
             @type = type
+            @regset = regset
             @map_proc = nil
-            @asm_str = nil
-            @sem_proc = nil
         end
 
         def for(op_name)
-            template = self
-            info = OperandInfo.new(op_name, @type)
-            info.asm_str = @asm_str
-            info.sem_proc = @sem_proc
-            info.map_proc = proc { instance_exec(op_name, &template.map_proc) }
+            info = OperandInfo.new(op_name, @type, @regset)
+            info.map_proc = @map_proc
             info
         end
 
@@ -135,11 +127,6 @@ module SimInfra
             @info.fields = fields
             @info.frmt= frmt
             map args
-
-            sum_bits = 0
-            for f in fields
-                sum_bits += Utility.get_type(f.value.type).bitsize
-            end
         end
         attr_reader :info
     end
@@ -156,34 +143,16 @@ module SimInfra
     class OperandBuilder
         include SimInfra
 
-        def initialize(name, type = nil)
-            @info = OperandInfo.new(name, type)
-        end
-
-        def map(type = nil, &block)
-            @info.type = type if type
-            @info.map_proc = block if block
-        end
-
-        def asm(&block)
-            @info.asm_str = instance_eval(&block) if block
-        end
-
-        def code(&block)
-            @info.map_proc = block if block
-        end
-
-        def sem(&block)
-            @info.sem_proc = block if block
+        def initialize(name, type = nil, regset = nil)
+            @info = OperandInfo.new(name, type, regset)
         end
 
         attr_reader :info
     end
 
-    def Operand(name, type = nil, &block)
-        bldr = OperandBuilder.new(name, type)
-        bldr.instance_eval(&block) if block
-        @@operands << bldr.info
+    def Operand(name, type = nil, regset = nil, &block)
+        bldr = OperandBuilder.new(name, type, regset)
+        bldr.info.map_proc = block if block
         bldr.info
     end
 
@@ -192,8 +161,8 @@ module SimInfra
     class InterfaceBuilder
         include SimInfra
 
-        def Function(name, output_types = [], input_types = [])
-            @@interface_functions << {:name => name, :return_types => output_types, :argument_types => input_types}
+        def Function(name, output_types = [], input_types = [], attrs = [])
+            @@interface_functions << {name: name, return_types: output_types, argument_types: input_types, attrs: attrs}
         end
     end
 
@@ -299,26 +268,27 @@ module SimInfra
             return if blocks.nil? || blocks.empty?
 
             blocks.each do |block|
-                scope = build_scope(block)
-                name = operand_name(block)
-                @info.operand_map[name] = scope
+                @info.operand_map[block.name] = build_scope(block)
             end
-            @info.operand_list = blocks.map { |b| operand_name(b) }
         end
 
         private
 
-        def operand_name(block)
-            block.is_a?(OperandInfo) ? block.name : block[0]
-        end
-
         def build_scope(block)
             scope = Scope.new(nil)
             @info.fields.each { |f| scope.method(f.value.name, f.value.type) }
-            if block.is_a?(OperandInfo)
+            op_name = block.name
+            value = if block.map_proc
                 scope.instance_eval(&block.map_proc)
+            elsif block.regset
+                scope.send("f_#{op_name}")
             else
-                scope.instance_eval(block[2])
+                raise "operand '#{op_name}' has no map rule"
+            end
+            if block.regset
+                scope.arlet(op_name, block.regset, [:op], block.type, value)
+            else
+                scope.alet(op_name, [:op], block.type, value)
             end
             scope
         end
