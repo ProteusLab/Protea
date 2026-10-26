@@ -2,41 +2,28 @@ require_relative "../../ADL/base"
 require_relative "../../ADL/builder"
 
 module SimInfra
-    XReg = Operand(:XReg, :r32) do
-        map { |name| let name, :XRegs, [:op], :r32, send("f_#{name}") }
-    end
+    XReg = Operand(:XReg, :r32, :XRegs)
 
-    IImm = Operand(:IImm, :s32) do
-        map { |name| let name, [:op], :s32, send("f_#{name}").s32 }
-    end
+    IImm = Operand(:IImm, :s32) { f_imm.s32 }
 
-    UImm = Operand(:UImm, :s32) do
-        map { |name| let name, [:op], :s32, (send("f_#{name}").s << 12) }
-    end
+    UImm = Operand(:UImm, :s32) { f_imm.s32 << 12 }
 
-    IsImm = Operand(:IsImm, :s32) do
-        map { |name| let name, [:op], :s32, f_imm4_0 }
-    end
+    IsImm = Operand(:IsImm, :s32) { f_imm4_0 }
 
-    JImm = Operand(:JImm, :s32) do
-        map { |name|
-            let name, [:op], :s32,
-                (f_imm20.b21 << 20 | f_imm19_12.b21 << 12 | f_imm11.b21 << 11 | f_imm10_1.b21 << 1).s32
-        }
-    end
+    JImm = Operand(:JImm, :s32) {
+        # imm[20] ← word[31], imm[19:12] ← word[19:12], imm[11] ← word[20], imm[10:1] ← word[30:21]
+        f_imm20.s32 << 20 | f_imm19_12.u32 << 12 | f_imm11.u32 << 11 | f_imm10_1.u32 << 1
+    }
 
-    BImm = Operand(:BImm, :s32) do
-        map { |name|
-            let name, [:op], :s32,
-                (f_imm12.b13 << 12 | f_imm11.b13 << 11 | f_imm10_5.b13 << 5 | f_imm4_1.b13 << 1).s32
-        }
-    end
+    BImm = Operand(:BImm, :s32) {
+        # imm[12] ← word[31], imm[11] ← word[7], imm[10:5] ← word[30:25], imm[4:1] ← word[11:8]
+        f_imm12.s32 << 12 | f_imm11.u32 << 11 | f_imm10_5.u32 << 5 | f_imm4_1.u32 << 1
+    }
 
-    SImm = Operand(:SImm, :s32) do
-        map { |name|
-            let name, [:op], :s32, (f_imm11_5.b12 << 5 | f_imm4_0.b12).s32
-        }
-    end
+    SImm = Operand(:SImm, :s32) {
+        # imm[11:5] ← word[31:25], imm[4:0] ← word[11:7]
+        f_imm11_5.s32 << 5 | f_imm4_0.u32
+    }
 end
 
 module SimInfra
@@ -107,7 +94,7 @@ module SimInfra
     def format_s(opcode, func3)
         return :S, [
             field(:f_opcode, 6, 0, opcode),
-            field(:func3, 14, 12, func3),
+            field(:f_func3, 14, 12, func3),
             field(:f_imm4_0, 11, 7),
             field(:f_rs1, 19, 15),
             field(:f_rs2, 24, 20),
