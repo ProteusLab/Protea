@@ -292,4 +292,10 @@ module RV32I
         asm { "fence" }
         code { }
     }
+
+    Instruction(:fence_i) {
+        encoding :E, [field(:c, 31, 0, 0b00000000000000000001000000001111)]
+        asm { "fence.i" }
+        code { }
+    }
 end
