@@ -40,7 +40,7 @@ module SimInfra
     end
 
     class InstructionInfo
-        attr_accessor :name, :fields, :frmt, :map, :code, :map_code_blocks, :asm_str, :XLEN, :feature
+        attr_accessor :name, :fields, :frmt, :map, :code, :map_code_blocks, :asm_str, :feature
         def initialize(name, feature)
             @name = name;
             @map_code_blocks = {}
@@ -52,7 +52,6 @@ module SimInfra
                 name: @name,
                 fields: @fields.map { |f| f.to_h },
                 frmt: @frmt,
-                XLEN: @XLEN,
                 asm_str: @asm_str,
                 code: @code.to_h,
                 map: @map.to_h,
@@ -64,7 +63,6 @@ module SimInfra
             info = InstructionInfo.new(h[:name], h[:feature])
             info.fields = h[:fields].map { |f| Field.from_h(f) }
             info.frmt = h[:frmt]
-            info.XLEN = h[:XLEN]
             info.asm_str = h[:asm_str]
             info.code = Scope.new(nil)
             info.code.instance_variable_set(:@tree, h[:code][:tree].map { |s| IrStmt.from_h(s) })
@@ -111,8 +109,6 @@ module SimInfra
             for f in fields
                 sum_bits += Utility.get_type(f.value.type).bitsize
             end
-            @info.XLEN = sum_bits / 8
-            @info.code.instance_eval "def xlen(); return #{@info.XLEN.to_s}; end"
         end
         attr_reader :info
     end
@@ -180,13 +176,27 @@ module SimInfra
     end
 
     @@regfiles = []
-    class RegisterFileBuilder
-        def initialize(name) 
-            @info = RegisterFileInfo.new(name)
-            @info.regs = []
-        end
-        attr_reader :info
+class RegisterFileBuilder
+  attr_reader :info
+  
+  def initialize(name) 
+    @info = RegisterFileInfo.new(name)
+    @info.regs = []
+  end
+
+  def method_missing(name, *args)
+    if name.to_s.start_with?('r')
+      size = name.to_s[1..].to_i
+      instance_eval "def #{name}(sym, *args); @info.regs << Register.new(sym, #{size}, args.size > 0 ? args : []); end", __FILE__, __LINE__
+      @info.regs << Register.new(args[0], size, args.size > 1 ? args[1..] : [])
+    else
+      error "Unknown method #{name}"
     end
+  end
+
+  def zero = :zero
+  def pc = :pc
+end
 
     def RegisterFile(name, &block)
         bldr = RegisterFileBuilder.new(name)
@@ -202,20 +212,6 @@ end
 
 # * generate precise fields
 module SimInfra
-    class RegisterFileBuilder
-        def r32(sym, *args)
-            @info.regs << Register.new(sym, 32, args[0] ? [args[0]] : [])
-        end
-
-        def zero()
-            :zero
-        end
-
-        def pc()
-            :pc
-        end
-    end
-
     class InstructionInfoBuilder
         def code(&block)
             if !@info.map_code_blocks.empty?

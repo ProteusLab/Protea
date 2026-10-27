@@ -20,4 +20,9 @@ foreach(test_file IN LISTS discovered_tests)
     "@PROJECT_NAME@.${test_name}"
     "@GENERATED_SIM_BIN_PATH@" --propagate-exit "${test_file}"
   )
+
+  add_test(
+    "@PROJECT_NAME@.cached-interp.${test_name}"
+    "@GENERATED_SIM_BIN_PATH@" --jit cached-interp --propagate-exit "${test_file}"
+  )
 endforeach()

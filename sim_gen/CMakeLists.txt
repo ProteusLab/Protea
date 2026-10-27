@@ -27,7 +27,7 @@ set(IR_YAML_FILE ${protea_irgen_BINARY_DIR}/IR.yaml)
 add_custom_command(DEPENDS
   OUTPUT ${PROTEA_SIMGEN_OUTPUT_FILES}
   COMMAND ${BUNDLE_PATH} exec ruby ${CMAKE_CURRENT_SOURCE_DIR}/sim_gen.rb ${IR_YAML_FILE}
-  DEPENDS ${IR_YAML_FILE}
+  DEPENDS protea_irgen
   COMMENT "Running ${PROJECT_NAME}"
 )
 add_custom_target(${PROJECT_NAME} ALL DEPENDS ${PROTEA_SIMGEN_OUTPUT_FILES})

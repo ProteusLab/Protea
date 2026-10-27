@@ -10,7 +10,7 @@ set(OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/tests")
 add_custom_target(init-tests
   ALL
   COMMAND ${CMAKE_COMMAND} -E make_directory "${INIT_DIR}"
-  COMMAND ${BUNDLE_PATH} exec ruby ${CMAKE_CURRENT_SOURCE_DIR}/InitTestGen.rb
+  COMMAND ${BUNDLE_PATH} exec ruby ${CMAKE_CURRENT_SOURCE_DIR}/InitTestGen.rb -n 20
     ${IR_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/Target/${TARGET_NAME}/Snippets ${INIT_DIR}
   COMMENT "Generating test .s files"
 )

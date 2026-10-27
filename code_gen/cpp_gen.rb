@@ -52,6 +52,8 @@ module CodeGen
         binary_operation(@emitter, operation, '-')
       when :mul
         binary_operation(@emitter, operation, '*')
+      when :rem
+        binary_operation(@emitter, operation, '%')
       when :div
         binary_operation(@emitter, operation, '/')
       when :shr
@@ -134,7 +136,8 @@ module CodeGen
         cond = @mapping[operation[:oprnds][1][:name]] || operation[:oprnds][1][:name]
         true_val = @mapping[operation[:oprnds][2][:name]] || operation[:oprnds][2][:name]
         false_val = @mapping[operation[:oprnds][3][:name]] || operation[:oprnds][3][:name]
-
+        true_val = true_val.nil? ? operation[:oprnds][2][:value] : true_val
+        false_val = false_val.nil? ? operation[:oprnds][3][:value] : false_val
         @emitter.emit_line("#{dst} = #{cond} ? #{true_val} : #{false_val};")
       end
     end

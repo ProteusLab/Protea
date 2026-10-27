@@ -44,22 +44,6 @@ module SimGen
         operands
       end
 
-      def cpu_write_reg(dst)
-        "cpu.set#{dst[:regset]}"
-      end
-
-      def cpu_read_reg(dst)
-        "cpu.get#{dst[:regset]}"
-      end
-
-      def cpu_write_mem(addr, val)
-        "cpu.m_memory->write(#{addr}, #{val})"
-      end
-
-      def cpu_read_mem(dst, addr)
-        "cpu.m_memory->read<#{Utility::HelperCpp.gen_small_type(dst[:type])}>(#{addr})"
-      end
-
       def generate_exec_function(instruction, funcs)
         emitter = Utility::GenEmitter.new
         operand_map = map_operands(instruction)
