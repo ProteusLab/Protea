@@ -107,31 +107,25 @@ module SimInfra
 
     def write(rfile, reg, expr) = stmt(:write, [rfile, reg, expr])
 
-    def memory_interface_name(base_name, types)
-      suffix = nil
-      if base_name == :readMem
-        type = types.first
-        suffix = type.to_s.match(/\d+/)[0] if type && type.to_s =~ /b\d+|r\d+/
-      elsif base_name == :writeMem
-        type = types[1] if types.size > 1
-        suffix = type.to_s.match(/\d+/)[0] if type && type.to_s =~ /b\d+|r\d+/
-      end
-      suffix ? "#{base_name}#{suffix}".to_sym : base_name
-    end
-
     def writeMem(addr, expr)
-      arg_types = [addr.type, expr.type]
-      iface_name = memory_interface_name(:writeMem, arg_types)
-      SimInfra.register_memory_interface(iface_name, [], arg_types)
-      stmt(:writeMem, [addr, expr], iface_name)
+      iface = @@interface_functions.find do |f|
+        f[:kind] == :memory &&
+          f[:name].to_s.start_with?('writeMem') &&
+          f[:argument_types] == [addr.type, expr.type]
+      end
+      raise "no memory interface declared for writeMem of #{expr.type}" unless iface
+      stmt(:writeMem, [addr, expr], iface[:name])
     end
 
     def readMem(addr, type)
-      arg_types = [addr.type]
-      iface_name = memory_interface_name(:readMem, [type])
-      iface = SimInfra.register_memory_interface(iface_name, [type], arg_types)
+      iface = @@interface_functions.find do |f|
+        f[:kind] == :memory &&
+          f[:name].to_s.start_with?('readMem') &&
+          f[:return_types] == [type]
+      end
+      raise "no memory interface declared for readMem of #{type}" unless iface
       v = tmpvar(type)
-      stmt(:readMem, [v, addr], iface_name)
+      stmt(:readMem, [v, addr], iface[:name])
     end
 
     def read(rfile, reg)
