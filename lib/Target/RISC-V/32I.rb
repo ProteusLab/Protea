@@ -7,7 +7,13 @@ module RV32I
     extend SimInfra
 
     Interface {
-        Function(:sysCall)
+        Function(:sysCall, kind: :cpu)
+        Function(:readMem8,  return_types: [:b8],  argument_types: [:b32], kind: :memory)
+        Function(:readMem16, return_types: [:b16], argument_types: [:b32], kind: :memory)
+        Function(:readMem32, return_types: [:b32], argument_types: [:b32], kind: :memory)
+        Function(:writeMem8,  argument_types: [:b32, :b8],  kind: :memory)
+        Function(:writeMem16, argument_types: [:b32, :b16], kind: :memory)
+        Function(:writeMem32, argument_types: [:b32, :r32], kind: :memory)
     }
 
     RegisterFile(:XRegs) {
