@@ -73,10 +73,10 @@ module SimInfra
             field(:f_funct3, 14, 12, funct3),
             field(:f_rs1, 19, 15),
             field(:f_rs2, 24, 20),
-            field(:f_imm4_1, 11, 8),
-            field(:f_imm10_5, 30, 25),
-            field(:f_imm11, 7, 7),
-            field(:f_imm12, 31, 31),
+            field(:f_imm4_1, 11, 8),     # → imm[4:1]
+            field(:f_imm10_5, 30, 25),   # → imm[10:5]
+            field(:f_imm11, 7, 7),       # → imm[11]
+            field(:f_imm12, 31, 31),     # → imm[12]
         ], BImm[:imm], XReg[:rs1], XReg[:rs2]
     end
 
@@ -84,10 +84,10 @@ module SimInfra
         return :J, [
             field(:f_opcode, 6, 0, opcode),
             field(:f_rd, 11, 7),
-            field(:f_imm20, 31, 31),
-            field(:f_imm19_12, 19, 12),
-            field(:f_imm11, 20, 20),
-            field(:f_imm10_1, 30, 21),
+            field(:f_imm20, 31, 31),     # → imm[20]
+            field(:f_imm19_12, 19, 12),  # → imm[19:12]
+            field(:f_imm11, 20, 20),     # → imm[11]
+            field(:f_imm10_1, 30, 21),   # → imm[10:1]
         ], JImm[:imm], XReg[:rd]
     end
 
@@ -95,10 +95,10 @@ module SimInfra
         return :S, [
             field(:f_opcode, 6, 0, opcode),
             field(:f_func3, 14, 12, func3),
-            field(:f_imm4_0, 11, 7),
+            field(:f_imm4_0, 11, 7),     # → imm[4:0]
             field(:f_rs1, 19, 15),
             field(:f_rs2, 24, 20),
-            field(:f_imm11_5, 31, 25),
+            field(:f_imm11_5, 31, 25),   # → imm[11:5]
         ], SImm[:imm], XReg[:rs1], XReg[:rs2]
     end
 end
