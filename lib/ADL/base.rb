@@ -8,23 +8,6 @@ module SimInfra
     @@interface_functions = [] unless defined?(@@interface_functions)
     @@instructions = [] unless defined?(@@instructions)
 
-    def self.register_memory_interface(name, return_types, argument_types)
-      # check whether the interface has already been registered before
-        exists = @@interface_functions.any? do |f|
-            f[:name] == name &&
-            f[:return_types] == return_types &&
-            f[:argument_types] == argument_types
-        end
-        unless exists
-            @@interface_functions << {
-                name: name,
-                return_types: return_types,
-                argument_types: argument_types,
-                kind: :memory
-            }
-        end
-    end
-
     def self.deep_stringify(value)
         case value
         when Hash
@@ -51,7 +34,7 @@ module SimInfra
     end
 
     def self.state
-        yaml_data = YAML.dump(
+        YAML.dump(
             deep_stringify({
                 regfiles: @@regfiles.map(&:to_h),
                 interface_functions: @@interface_functions.map(&:to_h),

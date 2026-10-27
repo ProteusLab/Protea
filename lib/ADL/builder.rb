@@ -55,6 +55,7 @@ module SimInfra
                 fields: @fields.map { |f| f.to_h },
                 frmt: @frmt,
                 asm_str: @asm_str,
+                feature: @feature,
                 code: @code.to_h,
                 operand_map: @operand_map.transform_values(&:to_h),
                 operand_list: @operand_map.keys,
@@ -161,8 +162,14 @@ module SimInfra
     class InterfaceBuilder
         include SimInfra
 
-        def Function(name, output_types = [], input_types = [], attrs = [])
-            @@interface_functions << {name: name, return_types: output_types, argument_types: input_types, attrs: attrs}
+        def Function(name, return_types: [], argument_types: [], attrs: [], kind: nil)
+            @@interface_functions << {
+                name: name,
+                return_types: return_types,
+                argument_types: argument_types,
+                attrs: attrs,
+                kind: kind,
+            }
         end
     end
 
