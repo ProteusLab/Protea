@@ -47,15 +47,27 @@ set(PROTEA_SIMGEN_OUTPUT_FILES
 
 set(IR_YAML_FILE ${protea_irgen_BINARY_DIR}/IR.yaml)
 
+if(PROTEA_USE_BUNDLER)
+  set(PROTEA_RUBY_COMMAND ${BUNDLE_PATH} exec ruby)
+else()
+  set(PROTEA_RUBY_COMMAND
+      ${CMAKE_COMMAND} -E env
+      "RUBYLIB=${CMAKE_CURRENT_SOURCE_DIR}/..:${CMAKE_CURRENT_SOURCE_DIR}/../lib"
+      ${Ruby_EXECUTABLE})
+endif()
 
 add_custom_command(DEPENDS
   OUTPUT ${PROTEA_SIMGEN_OUTPUT_FILES}
-  COMMAND ${BUNDLE_PATH} exec ruby ${CMAKE_CURRENT_SOURCE_DIR}/sim_gen.rb ${IR_YAML_FILE}
+  COMMAND ${PROTEA_RUBY_COMMAND} ${CMAKE_CURRENT_SOURCE_DIR}/sim_gen.rb ${IR_YAML_FILE}
   DEPENDS protea_irgen
   COMMENT "Running ${PROJECT_NAME}"
 )
 add_custom_target(${PROJECT_NAME} ALL DEPENDS ${PROTEA_SIMGEN_OUTPUT_FILES})
 add_dependencies(${PROJECT_NAME} protea_irgen)
+
+if(PROTEA_USE_BUNDLER)
+  add_dependencies(${PROJECT_NAME} bundle-install)
+endif()
 
 add_executable(sim ${PROTEA_SIMGEN_OUTPUT_SOURCES} 
   ${protea_simlib_SOURCE_DIR}/elf_loader.cc 

@@ -10,6 +10,9 @@ option(PROTEA_BUILD_TESTS
 option(PROTEA_BUILD_SIM
        "Build the native simulator generator and simulator" ON)
 
+option(PROTEA_USE_BUNDLER
+       "Run the serializers through bundler" OFF)
+
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
   set_property(CACHE CMAKE_INSTALL_PREFIX
                PROPERTY VALUE "${CMAKE_BINARY_DIR}/install")
@@ -20,7 +23,9 @@ find_package(Python3 3.12 REQUIRED COMPONENTS Interpreter)
 message("Python found: ${Python3_EXECUTABLE}")
 
 include(ExternalProject)
-include(cmake/Bundler.cmake)
+if(PROTEA_BUILD_TESTS OR PROTEA_USE_BUNDLER)
+  include(cmake/Bundler.cmake)
+endif()
 include(cmake/QEMU.cmake)
 include(cmake/CompilerOptions.cmake)
 include(cmake/CPM.cmake)
