@@ -7,6 +7,9 @@ set(TARGET_NAME RISCV)
 option(PROTEA_BUILD_TESTS
        "Enable tests build (requires riscv gnu toolchain)" OFF)
 
+option(PROTEA_BUILD_SIM
+       "Build the native simulator generator and simulator" ON)
+
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
   set_property(CACHE CMAKE_INSTALL_PREFIX
                PROPERTY VALUE "${CMAKE_BINARY_DIR}/install")
@@ -21,7 +24,6 @@ include(cmake/Bundler.cmake)
 include(cmake/QEMU.cmake)
 include(cmake/CompilerOptions.cmake)
 include(cmake/CPM.cmake)
-include(cmake/dependencies.cmake)
 include(cmake/CompilerConfig.cmake)
 
 if(PROTEA_BUILD_TESTS)
@@ -29,6 +31,8 @@ if(PROTEA_BUILD_TESTS)
 endif()
 
 add_subdirectory(lib)
-add_subdirectory(sim_lib)
-add_subdirectory(sim_gen)
+if(PROTEA_BUILD_SIM)
+  add_subdirectory(sim_lib)
+  add_subdirectory(sim_gen)
+endif()
 add_subdirectory(test)
