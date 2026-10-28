@@ -27,7 +27,7 @@ if(PROTEA_BUILD_TESTS)
     CMAKE_ARGS ${DEFAULT_ARGS} -DQEMU_PATH=${QEMU_PATH} -DBUNDLE_PATH=${BUNDLE_PATH} -DIR_PATH=${protea_irgen_BINARY_DIR}/IR.yaml -DTARGET_NAME=${TARGET_NAME} -DOUTPUT_TESTS_DIR=${OUTPUT_TESTS_DIR}
     INSTALL_COMMAND "")
 
-  add_dependencies(snippetbased-simtestsimpl protea_irgen sim)
+  add_dependencies(snippetbased-simtestsimpl protea_irgen sim bundle-install)
 
   set(DISCOVER_SCRIPT "${CMAKE_CURRENT_BINARY_DIR}/discover_generated_tests.cmake")
   configure_file(

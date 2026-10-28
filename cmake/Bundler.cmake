@@ -1,13 +1,16 @@
-if (NOT DEFINED BUNDLE_PATH)
+if(NOT DEFINED BUNDLE_PATH)
   set(BUNDLE_PATH "bundle")
 endif()
 
-execute_process(
+set(BUNDLE_STAMP ${CMAKE_BINARY_DIR}/bundle/.installed)
+
+add_custom_command(
+  OUTPUT ${BUNDLE_STAMP}
   COMMAND ${BUNDLE_PATH} config set --local path ${CMAKE_BINARY_DIR}/bundle
+  COMMAND ${BUNDLE_PATH} install
+  COMMAND ${CMAKE_COMMAND} -E touch ${BUNDLE_STAMP}
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  COMMENT "Installing gems with bundler"
 )
 
-execute_process(
-  COMMAND ${BUNDLE_PATH} install
-  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-)
+add_custom_target(bundle-install DEPENDS ${BUNDLE_STAMP})
