@@ -4,6 +4,10 @@ require_relative "value"
 module SimInfra
     # @@instructions -array of instruction description
     # shows result of our tests in interactive Ruby (IRB) or standalone
+    @@regfiles = [] unless defined?(@@regfiles)
+    @@interface_functions = [] unless defined?(@@interface_functions)
+    @@instructions = [] unless defined?(@@instructions)
+
     def self.serialize(msg= nil)
         require 'yaml'
         yaml_data = YAML.dump(
@@ -17,7 +21,7 @@ module SimInfra
     end
 
     def self.state
-        yaml_data = YAML.dump(
+        YAML.dump(
             {
                 regfiles: @@regfiles.map(&:to_h),
                 interface_functions: @@interface_functions.map(&:to_h),

@@ -106,8 +106,27 @@ module SimInfra
     def get_reg(expr, regset, type) = rlet("_reg_#{next_counter}".to_sym, regset, type, expr)
 
     def write(rfile, reg, expr) = stmt(:write, [rfile, reg, expr])
-    def writeMem(addr, expr) = stmt(:writeMem, [addr, expr])
-    def readMem(addr, type) = stmt(:readMem, [tmpvar(type), addr])
+
+    def writeMem(addr, expr)
+      iface = @@interface_functions.find do |f|
+        f[:kind] == :memory &&
+          f[:name].to_s.start_with?('writeMem') &&
+          f[:argument_types] == [addr.type, expr.type]
+      end
+      raise "no memory interface declared for writeMem of #{expr.type}" unless iface
+      stmt(:writeMem, [addr, expr], iface[:name])
+    end
+
+    def readMem(addr, type)
+      iface = @@interface_functions.find do |f|
+        f[:kind] == :memory &&
+          f[:name].to_s.start_with?('readMem') &&
+          f[:return_types] == [type]
+      end
+      raise "no memory interface declared for readMem of #{type}" unless iface
+      v = tmpvar(type)
+      stmt(:readMem, [v, addr], iface[:name])
+    end
 
     def read(rfile, reg)
       v = tmpvar(:b32)

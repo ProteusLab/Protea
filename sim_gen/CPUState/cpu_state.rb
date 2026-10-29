@@ -164,7 +164,7 @@ module SimGen
   module CPUState
     module Header
       module_function
-      
+
       def generate_cpu_state(input_ir)
         pc_decl = Helper.generate_pc_decl(input_ir[:regfiles])
         pc_functions = Helper.generate_pc_functions(input_ir[:regfiles])
