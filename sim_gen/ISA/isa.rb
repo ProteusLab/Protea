@@ -18,14 +18,20 @@ module SimGen
                 max_operands = 0
                 max_size = 0
                 instructions.each do |insn|
-                    operands_count = 0
-                    insn[:map][:tree].each do |node|
-                        if node[:name] == :new_var && !node[:attrs].nil? && node[:attrs].include?(:op)
-                            operands_count += 1
-                            max_size = Utility.get_type(node[:oprnds][0][:type]).bitsize if Utility.get_type(node[:oprnds][0][:type]).bitsize > max_size
-                        end
-                    end
-                    max_operands = operands_count if operands_count > max_operands
+                  op_list = insn[:operand_list] || []
+                  max_operands = op_list.size if op_list.size > max_operands
+                  op_map = insn[:operand_map] || {}
+                  op_list.each do |name|
+                    scope = op_map[name]
+                    next unless scope
+                    new_var_node = (scope[:tree] || []).find { |n|
+                      n[:name] == :new_var && n[:attrs]&.include?(:op)
+                    }
+                    next unless new_var_node
+                    type = new_var_node[:oprnds][0][:type]
+                    bitsize = Utility.get_type(type).bitsize
+                    max_size = bitsize if bitsize > max_size
+                  end
                 end
                 [max_operands, max_size]
             end
