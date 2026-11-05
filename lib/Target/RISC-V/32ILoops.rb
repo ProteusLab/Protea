@@ -23,8 +23,8 @@ module Ops
 end
 
 module RV32I
-    include SimInfra
-    extend SimInfra
+    include Protea
+    extend Protea
 
     RegisterFile(:XRegs) {
         r32 :x0, zero

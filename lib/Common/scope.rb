@@ -96,7 +96,7 @@ module Protea
     end
 
     def binOp(a, b, op)
-      if a.plod_type.nil?
+      if a.plod_type.nil? || a.plod_type.is_a?(Type::Empty)
         binOpWType(a, b, op,
                  Utility.get_type(a.type).typeof == :r ? ('b' + Utility.get_type(a.type).bitsize.to_s).to_sym : a.type)
       else
@@ -208,9 +208,9 @@ module Protea
     # stmtadds statement into tree and retursoperand[0]
     # which result in near all cases
     def stmt(name, operands, attrs = nil)
-      # for i in 1...operands.length
-      #   operands[i] = read_transform(name, operands[i])
-      # end
+      for i in 1...operands.length
+        operands[i] = read_transform(name, operands[i])
+      end
       @tree << IrStmt.new(name, operands, attrs)
       operands[0]
     end

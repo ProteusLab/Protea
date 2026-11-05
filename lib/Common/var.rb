@@ -87,16 +87,16 @@ module Protea
     def b = scope.cast(self, ('b' + Utility.get_type(@type).bitsize.to_s).to_sym)
     def r(regset) = scope.get_reg(self, regset, ('r' + Utility.get_type(@type).bitsize.to_s).to_sym)
 
-    # def method_missing(name, *regset)
-    #   if regset.empty?
-    #     instance_eval "def #{name}(); scope.cast(self, (#{name}).to_sym); end", __FILE__, __LINE__
-    #     scope.cast(self, name.to_sym)
-    #   else
-    #     instance_eval "def #{name}(regset);  scope.get_reg(self, regset, (#{name}).to_sym); end", __FILE__,
-    #                   __LINE__ - 1
-    #     scope.get_reg(self, *regset, name.to_sym)
-    #   end
-    # end
+    def method_missing(name, *regset)
+      if regset.empty?
+        instance_eval "def #{name}(); scope.cast(self, (#{name}).to_sym); end", __FILE__, __LINE__
+        scope.cast(self, name.to_sym)
+      else
+        instance_eval "def #{name}(regset);  scope.get_reg(self, regset, (#{name}).to_sym); end", __FILE__,
+                      __LINE__ - 1
+        scope.get_reg(self, *regset, name.to_sym)
+      end
+    end
 
     def set_regset(regset)
       @regset = regset
