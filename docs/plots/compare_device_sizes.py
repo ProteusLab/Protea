@@ -65,12 +65,12 @@ def render(rows, output):
     plod_bars = ax.bar(
         [position - width / 2 for position in positions],
         [row["plod_code_lines"] for row in rows], width,
-        color="#66C2A5", label="PLOD",
+        color="#66C2A5", label="gem5 с Protea SDL",
     )
     gem5_bars = ax.bar(
         [position + width / 2 for position in positions],
         [row["gem5_code_lines"] for row in rows], width,
-        color="#FC8D62", label="gem5 (baseline)",
+        color="#FC8D62", label="gem5 (оригинальная версия)",
     )
     for bars in (plod_bars, gem5_bars):
         ax.bar_label(bars, padding=4, fontsize=15, color="black")
@@ -87,8 +87,8 @@ def render(rows, output):
     maximum = max(max(row["gem5_code_lines"], row["plod_code_lines"]) for row in rows)
     ax.set_ylim(0, maximum * 1.25)
     ax.yaxis.set_major_locator(MultipleLocator(100 if maximum < 1000 else 200))
-    ax.set_ylabel("Lines of code")
-    ax.set_title("Device description code size", loc="left", fontsize=22,
+    ax.set_ylabel("Количество строк кода")
+    ax.set_title("Объём кода описания устройств", loc="left", fontsize=22,
                  fontweight="bold", pad=10)
     ax.set_axisbelow(True)
     ax.grid(axis="y", color="#E6EAED", linewidth=1)
