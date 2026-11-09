@@ -24,7 +24,7 @@ module SimTest
       ir[:regfiles].each do |regfile|
         regfile[:regs].each do |reg|
           attrs = reg[:attrs] || []
-          next if attrs.include?(:zero) || attrs.include?(:pc)
+          next if attrs.include?("zero") || attrs.include?("pc")
           size = reg[:size] || 32
           max = (1 << size) - 1
           values[reg[:name]] = @rng.rand(0..max)

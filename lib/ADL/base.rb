@@ -4,25 +4,38 @@ require_relative "value"
 module SimInfra
     # @@instructions -array of instruction description
     # shows result of our tests in interactive Ruby (IRB) or standalone
+    def self.deep_stringify(value)
+        case value
+        when Hash
+            value.each_with_object({}) { |(k, v), h| h[deep_stringify(k)] = deep_stringify(v) }
+        when Array
+            value.map { |v| deep_stringify(v) }
+        when Symbol
+            value.to_s
+        else
+            value
+        end
+    end
+
     def self.serialize(msg= nil)
         require 'yaml'
         yaml_data = YAML.dump(
-          {
-            regfiles: @@regfiles.map(&:to_h),
-            interface_functions: @@interface_functions.map(&:to_h),
-            instructions: @@instructions.map(&:to_h),
-          }
+            deep_stringify({
+                regfiles: @@regfiles.map(&:to_h),
+                interface_functions: @@interface_functions.map(&:to_h),
+                instructions: @@instructions.map(&:to_h),
+            })
         )
         yaml_data
     end
 
     def self.state
         yaml_data = YAML.dump(
-            {
+            deep_stringify({
                 regfiles: @@regfiles.map(&:to_h),
                 interface_functions: @@interface_functions.map(&:to_h),
                 instructions: @@instructions.map(&:to_h),
-            }
+            })
         )
     end
 
